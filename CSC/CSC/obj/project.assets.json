@@ -222,11 +222,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj",
+      "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\CSC.fsproj",
       "projectName": "CSC",
-      "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj",
+      "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\CSC.fsproj",
       "packagesPath": "C:\\Users\\ukeselman\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\obj\\",
+      "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\ukeselman\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -246,11 +246,11 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "projectReferences": {
-            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj": {
-              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj"
+            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.IO\\CSC.IO.fsproj": {
+              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.IO\\CSC.IO.fsproj"
             },
-            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj": {
-              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj"
+            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.Model\\CSC.Model.fsproj": {
+              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.Model\\CSC.Model.fsproj"
             }
           }
         }

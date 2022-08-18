@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "hkV+XG0Mhn3DrtQIn5mTyDQTnYr/ZLIumbylUNAFXHcThNYGSh3Li09p0ts9JL550BvQUB+NT/I6WUM5W62DRg==",
+  "dgSpecHash": "XWt3SAyi9y46Z+FOQGo2T3yF0syM512lAZ6XuRYYxGHRIt1piSXjNnIaW64HXWh81mLmBWrauZ33u8LdJz69KQ==",
   "success": true,
-  "projectFilePath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj",
+  "projectFilePath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\CSC.fsproj",
   "expectedPackageFiles": [
     "C:\\Users\\ukeselman\\.nuget\\packages\\fsharp.core\\6.0.5\\fsharp.core.6.0.5.nupkg.sha512",
     "C:\\Users\\ukeselman\\.nuget\\packages\\nbitcoin.secp256k1\\3.0.1\\nbitcoin.secp256k1.3.0.1.nupkg.sha512",

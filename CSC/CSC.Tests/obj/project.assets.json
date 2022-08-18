@@ -1666,11 +1666,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Tests\\CSC.Tests.fsproj",
+      "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.Tests\\CSC.Tests.fsproj",
       "projectName": "CSC.Tests",
-      "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Tests\\CSC.Tests.fsproj",
+      "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.Tests\\CSC.Tests.fsproj",
       "packagesPath": "C:\\Users\\ukeselman\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Tests\\obj\\",
+      "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\ukeselman\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -1690,8 +1690,8 @@
         "net6.0": {
           "targetAlias": "net6.0",
           "projectReferences": {
-            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj": {
-              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj"
+            "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\CSC.fsproj": {
+              "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\src\\CSC\\CSC\\CSC.fsproj"
             }
           }
         }
