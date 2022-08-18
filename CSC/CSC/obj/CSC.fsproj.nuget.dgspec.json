@@ -1,0 +1,219 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj": {}
+  },
+  "projects": {
+    "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj",
+        "projectName": "CSC.IO",
+        "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj",
+        "packagesPath": "C:\\Users\\ukeselman\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\ukeselman\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\sdk\\6.0.303\\FSharp\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common@Local/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0": {
+            "targetAlias": "net6.0",
+            "projectReferences": {
+              "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj": {
+                "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "net6.0": {
+          "targetAlias": "net6.0",
+          "dependencies": {
+            "FSharp.Core": {
+              "include": "Runtime, Compile, Build, Native, Analyzers, BuildTransitive",
+              "target": "Package",
+              "version": "[6.0.5, )",
+              "generatePathProperty": true
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.1, )",
+              "generatePathProperty": true
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.303\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj",
+        "projectName": "CSC.Model",
+        "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj",
+        "packagesPath": "C:\\Users\\ukeselman\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\ukeselman\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\sdk\\6.0.303\\FSharp\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common@Local/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0": {
+            "targetAlias": "net6.0",
+            "projectReferences": {}
+          }
+        }
+      },
+      "frameworks": {
+        "net6.0": {
+          "targetAlias": "net6.0",
+          "dependencies": {
+            "FSharp.Core": {
+              "include": "Runtime, Compile, Build, Native, Analyzers, BuildTransitive",
+              "target": "Package",
+              "version": "[6.0.5, )",
+              "generatePathProperty": true
+            },
+            "NBitcoin.Secp256k1": {
+              "target": "Package",
+              "version": "[3.0.1, )",
+              "generatePathProperty": true
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.303\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj",
+        "projectName": "CSC",
+        "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\CSC.fsproj",
+        "packagesPath": "C:\\Users\\ukeselman\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\ukeselman\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\sdk\\6.0.303\\FSharp\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common/nuget/v3/index.json": {},
+          "https://pkgs.dev.azure.com/crossriverbank/_packaging/common@Local/nuget/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0": {
+            "targetAlias": "net6.0",
+            "projectReferences": {
+              "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj": {
+                "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.IO\\CSC.IO.fsproj"
+              },
+              "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj": {
+                "projectPath": "C:\\Users\\ukeselman\\OneDrive - Cross River Bank\\Documents\\Braude\\Final project\\CSC\\CSC.Model\\CSC.Model.fsproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "net6.0": {
+          "targetAlias": "net6.0",
+          "dependencies": {
+            "FSharp.Core": {
+              "include": "Runtime, Compile, Build, Native, Analyzers, BuildTransitive",
+              "target": "Package",
+              "version": "[6.0.5, )",
+              "generatePathProperty": true
+            },
+            "NBitcoin.Secp256k1": {
+              "target": "Package",
+              "version": "[3.0.1, )",
+              "generatePathProperty": true
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.1, )",
+              "generatePathProperty": true
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.303\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
