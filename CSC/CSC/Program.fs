@@ -1,8 +1,9 @@
 ﻿
 open System
 open CSC.IO
+open Crypto
 
-let key = Wallet.createPrivateKeyBytes 
+let key = createPrivateKeyBytes 
 let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
 
 //Wallet.save (fun w -> File.WriteAllText(wallet.name, w)) Serializer.serialize wallet

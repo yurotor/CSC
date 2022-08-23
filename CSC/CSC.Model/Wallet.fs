@@ -3,6 +3,7 @@
 open NBitcoin.Secp256k1
 open System
 open Blockchain
+open Crypto
     
     type Wallet = {
         name: string
@@ -12,28 +13,14 @@ open Blockchain
     let addKeyToWallet key wallet =
         { wallet with keys = key :: wallet.keys }
 
-    let createPrivateKeyBytes =        
-        Key.generate
-
-    let createPrivateKey privKey =
-        ECPrivKey.Create (ReadOnlySpan<byte> privKey)
-
-    let createPubKey privKey =
-        let pr = createPrivateKey privKey
-        pr.CreatePubKey ()     
-
-    let createPubKeyBytes privKey =
-        let pubkey = createPubKey privKey
-        let mutable buffer: Span<byte> = Span<byte> (Array.zeroCreate 33)
-        let mutable len = 0
-        pubkey.WriteToSpan (true, buffer, &len)
-        buffer.ToArray ()
-
     let save saver serializer wallet =
         wallet |> serializer |> saver
 
     let load loader deserializer walletName = 
         walletName |> loader |> deserializer
+
+    let outputHash output =
+        Array.concat [bytesOf (output.value.ToString()); output.pubKeyHash] |> hash
 
     let createCoinbaseTransaction value time key =
         let pubKeyHash = key |> createPubKeyBytes |> hash
@@ -45,16 +32,9 @@ open Blockchain
     let createTransactionInput (spend: Transaction) index wallet =
         match spend.outputs |> List.tryItem index, wallet.keys with
         | Some utxo, key :: _ ->
-            let prevTxId = Array.concat [bytesOf (utxo.value.ToString()); utxo.pubKeyHash] |> hash
-            let prKey = createPrivateKey key
-            let toSign = Array.concat [prevTxId; bytesOf (index.ToString())]
-            let mutable signature: SecpECDSASignature = null
-            if prKey.TrySignECDSA(ReadOnlySpan<byte> toSign, &signature) then
-                let mutable buffer: Span<byte> = Span<byte> (Array.zeroCreate 32)
-                signature.WriteCompactToSpan(buffer)
-                Some { prevTxId = prevTxId; prevTxIndex = index; pubKey = createPubKeyBytes key; signature = buffer.ToArray () }
-            else
-                None
+            let prevTxId = outputHash utxo
+            sign key (toSign prevTxId index)
+            |> Option.map (fun signature -> { prevTxId = prevTxId; prevTxIndex = index; pubKey = createPubKeyBytes key; signature = signature })
         | _ -> None
 
     let createTransactionOutput value wallet =

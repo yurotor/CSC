@@ -6,23 +6,24 @@ open Xunit
 open FsUnit
 open NBitcoin.Secp256k1
 open System.Text
+open Crypto
 
     [<Fact>]
     let ``Create private key returns a 32 byte key`` () =
-        let pubkey = Wallet.createPrivateKeyBytes
+        let pubkey = createPrivateKeyBytes
         pubkey |> Array.length |> should equal 32
 
     [<Fact>]
      let ``Create public key returns a 33 byte key`` () =
-        let prkey = Wallet.createPrivateKeyBytes
-        let pubkey = Wallet.createPubKeyBytes prkey
+        let prkey = createPrivateKeyBytes
+        let pubkey = createPubKeyBytes prkey
         pubkey |> Array.length |> should equal 33
 
     [<Fact>]
     let ``Public key can be recreated from bytes`` () =
-        let prkey = Wallet.createPrivateKeyBytes
-        let pubkey = Wallet.createPubKey prkey
-        let pubkeyBytes = Wallet.createPubKeyBytes prkey
+        let prkey = createPrivateKeyBytes
+        let pubkey = createPubKey prkey
+        let pubkeyBytes = createPubKeyBytes prkey
         let mutable pubkey2: ECPubKey = null 
         let mutable compressed = true
         if ECPubKey.TryCreate(System.Span<byte> pubkeyBytes, null, &compressed, &pubkey2) then
@@ -33,7 +34,7 @@ open System.Text
     [<Fact>]
     let ``Wallet save and load keeps all keys`` () =
         let mutable storage = ""
-        let wallet = { Wallet.name="ukeselman";Wallet.keys=[Wallet.createPrivateKeyBytes;Wallet.createPrivateKeyBytes] }
+        let wallet = { Wallet.name="ukeselman";Wallet.keys=[createPrivateKeyBytes;createPrivateKeyBytes] }
         Wallet.save (fun w -> storage <- w) Serializer.serialize wallet
         let wallet2 = Wallet.load (fun _ -> storage) Serializer.deserialize<Wallet.Wallet> wallet.name
         match wallet.keys, wallet2.keys with
@@ -42,7 +43,7 @@ open System.Text
 
     [<Fact>]
     let ``Create blockchain with 10 blocks`` () =
-        let key = Wallet.createPrivateKeyBytes 
+        let key = createPrivateKeyBytes 
         let rec mine blocks threshold nonce lim =
             let time = unixTime DateTime.Now
             let tx = Wallet.createCoinbaseTransaction 100UL time key

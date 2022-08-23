@@ -1,5 +1,7 @@
 ﻿module Blockchain
 
+open Common.Crypto
+
     type TxInput = {
         prevTxId: Hash
         prevTxIndex: int
@@ -30,6 +32,9 @@
         transaction: Transaction
         index: int
     }
+
+    let toSign prevTxId index =
+        Array.concat [prevTxId; bytesOf (index.ToString())]
 
     let blockHeaderHash block =
         Array.concat 
@@ -86,27 +91,45 @@
             )
             []
 
-    //let validateTransaction txid blocks transaction =
-    //    transaction.inputs
-    //    |> List.map 
-    //        (fun input ->
-    //            let output =
-    //                blocks 
-    //                |> List.map (fun b -> b.transactions)
-    //                |> List.concat
-    //                |> List.tryFind (fun t -> txid t = input.prevTxId)
-    //                |> Option.bind (fun t -> t.outputs |> List.tryItem input.prevTxIndex)
-    //            //match output with
-    //            //| Some o -> o.pubKeyHash = hash input.pubKey
-    //        )
+    let validateTransaction txid blocks transaction =
+        transaction.inputs
+        |> List.forall 
+            (fun input ->
+                blocks 
+                |> List.map (fun b -> b.transactions)
+                |> List.concat
+                |> List.tryFind (fun t -> txid t = input.prevTxId)
+                |> Option.bind (fun t -> t.outputs |> List.tryItem input.prevTxIndex)
+                |> Option.map 
+                    (fun o -> 
+                        o.pubKeyHash = hash input.pubKey && 
+                        verifySig input.signature input.pubKey (toSign input.prevTxId input.prevTxIndex)
+                    )
+                |> Option.defaultValue false
+            )
 
-    //let validateBlockchain blocks =
-    //    blocks
-    //    |> List.fold
-    //        (fun v b ->
-                
-    //        )
-    //        true
+    let validateBlockHeader txid threshold prevblock block =
+        prevblock
+        |> Option.map (blockHeaderHash >> (=) block.prevBlockHeaderHash)
+        |> Option.defaultValue true
+        &&
+        block.transactions |> List.map txid |> Array.concat = block.content 
+        &&
+        block |> blockHeaderHash |> leadingZeros >= threshold
+
+    let validateBlockchain txid threshold blocks =
+        let rec validate prev rest =
+            match rest with
+            | head :: tail -> 
+                if validateBlockHeader txid threshold prev head &&
+                    head.transactions |> List.forall (validateTransaction txid blocks)
+                    then
+                    validate (Some head) tail
+                else
+                    false
+            | _ -> true
+            
+        validate None blocks
 
     let nextNonce nonce = 
         nonce + 1UL
