@@ -33,6 +33,17 @@ open Common.Crypto
         index: int
     }
 
+    let toBytes transaction =
+        [
+        transaction.inputs
+        |> List.map (fun i -> Array.concat [i.prevTxId; bytesOf <| i.prevTxIndex.ToString(); i.pubKey; i.signature])
+        |> Array.concat;
+        transaction.outputs
+        |> List.map (fun o -> Array.concat [o.pubKeyHash; bytesOf <|  o.value.ToString()])
+        |> Array.concat
+        ]
+        |> Array.concat
+
     let toSign prevTxId index =
         Array.concat [prevTxId; bytesOf (index.ToString())]
 
@@ -44,10 +55,10 @@ open Common.Crypto
               bytesOf (block.nonce.ToString()) ] 
             |> hash
 
-    let tryCreateBlock txid prevBlock transactions time threshold nonce =
+    let tryCreateBlock prevBlock transactions time threshold nonce =
         let content =
             transactions
-            |> List.map txid
+            |> List.map toBytes
             |> Array.concat
 
         let prevBlockHeaderHash = 
@@ -61,7 +72,7 @@ open Common.Crypto
         else
             None
 
-    let getUTXOSet txid (blocks: Block list) : UTXO list =
+    let getUTXOSet (blocks: Block list) : UTXO list =
         blocks
         |> List.fold 
             (fun utxos block ->
@@ -72,7 +83,7 @@ open Common.Crypto
                             t.inputs
                             |> List.fold
                                 (fun u_ input ->
-                                    match u_ |> List.tryFindIndex (fun i -> txid i.transaction = input.prevTxId) with
+                                    match u_ |> List.tryFindIndex (fun i -> toBytes i.transaction = input.prevTxId) with
                                     | Some index -> u_ |> List.removeAt index
                                     | _ -> u_
                                 )
@@ -91,14 +102,14 @@ open Common.Crypto
             )
             []
 
-    let validateTransaction txid blocks transaction =
+    let validateTransaction blocks transaction =
         transaction.inputs
         |> List.forall 
             (fun input ->
                 blocks 
                 |> List.map (fun b -> b.transactions)
                 |> List.concat
-                |> List.tryFind (fun t -> txid t = input.prevTxId)
+                |> List.tryFind (fun t -> toBytes t = input.prevTxId)
                 |> Option.bind (fun t -> t.outputs |> List.tryItem input.prevTxIndex)
                 |> Option.map 
                     (fun o -> 
@@ -108,12 +119,12 @@ open Common.Crypto
                 |> Option.defaultValue false
             )
 
-    let validateBlockHeader txid threshold prevblock block =
+    let validateBlockHeader threshold prevblock block =
         prevblock
         |> Option.map (blockHeaderHash >> (=) block.prevBlockHeaderHash)
         |> Option.defaultValue true
         &&
-        block.transactions |> List.map txid |> Array.concat = block.content 
+        block.transactions |> List.map toBytes |> Array.concat = block.content 
         &&
         block |> blockHeaderHash |> leadingZeros >= threshold
 
@@ -121,8 +132,8 @@ open Common.Crypto
         let rec validate prev rest =
             match rest with
             | head :: tail -> 
-                if validateBlockHeader txid threshold prev head &&
-                    head.transactions |> List.forall (validateTransaction txid blocks)
+                if validateBlockHeader threshold prev head &&
+                    head.transactions |> List.forall (validateTransaction blocks)
                     then
                     validate (Some head) tail
                 else

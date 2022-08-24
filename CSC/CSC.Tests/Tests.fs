@@ -48,7 +48,7 @@ open Crypto
             let time = unixTime DateTime.Now
             let tx = Wallet.createCoinbaseTransaction 100UL time key
             let prevBlock = blocks |> List.tryHead
-            match Blockchain.tryCreateBlock Serializer.txid prevBlock [ tx ] time threshold nonce with
+            match Blockchain.tryCreateBlock prevBlock [ tx ] time threshold nonce with
             | Some block -> 
                 if lim > (blocks |> List.length) then mine (block :: blocks) threshold nonce lim
                 else (block :: blocks)
@@ -56,3 +56,22 @@ open Crypto
         
         let blocks = mine [] 1 1UL 9
         blocks |> List.length |> should equal 10
+
+    [<Fact>]
+    let ``Verify signature`` () =
+        let randomStr = 
+            let chars = "ABCDEFGHIJKLMNOPQRSTUVWUXYZ0123456789"
+            let charsLen = chars.Length
+            let random = System.Random()
+        
+            fun len -> 
+                let randomChars = [|for i in 0..len-1 -> chars.[random.Next(charsLen)]|]
+                new System.String(randomChars)
+
+        let msg = bytesOf <| randomStr 32
+        let prkey = createPrivateKeyBytes 
+        let pubkeyBytes = createPubKeyBytes prkey
+        
+        match sign prkey msg with
+        | Some s -> verifySig s pubkeyBytes msg |> should equal true
+        | _ -> failwith "Failed to sign message"

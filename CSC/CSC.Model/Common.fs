@@ -60,7 +60,7 @@ open NBitcoin.Secp256k1
             let prKey = createPrivateKey key
             let mutable signature: SecpECDSASignature = null
             if prKey.TrySignECDSA(ReadOnlySpan<byte> data, &signature) then
-                let mutable buffer: Span<byte> = Span<byte> (Array.zeroCreate 32)
+                let mutable buffer: Span<byte> = Span<byte> (Array.zeroCreate 64)
                 signature.WriteCompactToSpan(buffer)
                 Some <| buffer.ToArray ()
             else

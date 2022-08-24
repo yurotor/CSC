@@ -41,7 +41,6 @@ let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
 let blocks = loadBlockchain
 let newBlock =
     Miner.mine 
-        Serializer.txid
         key
         blocks
         DateTime.Now
