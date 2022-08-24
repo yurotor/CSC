@@ -104,41 +104,63 @@ open Common.Crypto
 
     let validateTransaction blocks transaction =
         transaction.inputs
-        |> List.forall 
-            (fun input ->
-                blocks 
-                |> List.map (fun b -> b.transactions)
-                |> List.concat
-                |> List.tryFind (fun t -> toBytes t = input.prevTxId)
-                |> Option.bind (fun t -> t.outputs |> List.tryItem input.prevTxIndex)
-                |> Option.map 
-                    (fun o -> 
-                        o.pubKeyHash = hash input.pubKey && 
+        |> List.fold 
+            (fun state input ->
+                result {
+                    let! t = 
+                        blocks 
+                        |> List.map (fun b -> b.transactions)
+                        |> List.concat
+                        |> List.tryFind (fun t -> toBytes t = input.prevTxId)
+                        |> Result.ofOption "Can't find transaction"
+
+                    let! o = 
+                        t.outputs 
+                        |> List.tryItem input.prevTxIndex
+                        |> Result.ofOption "Can't find prevTxIndex"
+
+                    let! _ =
+                        o.pubKeyHash = hash input.pubKey
+                        |> Result.ofBool "Public key hash mismatch"
+
+                    let! _ =
                         verifySig input.signature input.pubKey (toSign input.prevTxId input.prevTxIndex)
-                    )
-                |> Option.defaultValue false
+                        |> Result.ofBool "Singature mismatch"
+
+                    return t
+                }
+                |> ValidationResult.chain state
             )
+            Valid
 
     let validateBlockHeader threshold prevblock block =
         prevblock
         |> Option.map (blockHeaderHash >> (=) block.prevBlockHeaderHash)
         |> Option.defaultValue true
-        &&
-        block.transactions |> List.map toBytes |> Array.concat = block.content 
-        &&
-        block |> blockHeaderHash |> leadingZeros >= threshold
+        |> Result.ofBool "Block header hash mismatch"
+        |> ValidationResult.ofResult
+        |> ValidationResult.concat
+            (block.transactions |> List.map toBytes |> Array.concat = block.content 
+            |> Result.ofBool "Block content mismatch"
+            |> ValidationResult.ofResult)
+        |> ValidationResult.concat  
+            (block |> blockHeaderHash |> leadingZeros >= threshold
+            |> Result.ofBool "Invalid nonce"
+            |> ValidationResult.ofResult)
 
-    let validateBlockchain txid threshold blocks =
+    let validateBlockchain threshold blocks =
         let rec validate prev rest =
             match rest with
             | head :: tail -> 
-                if validateBlockHeader threshold prev head &&
-                    head.transactions |> List.forall (validateTransaction blocks)
-                    then
-                    validate (Some head) tail
-                else
-                    false
-            | _ -> true
+                validateBlockHeader threshold prev head 
+                |> ValidationResult.concat
+                    (head.transactions 
+                    |> List.fold 
+                        (fun state t -> validateTransaction blocks t |> ValidationResult.concat state) 
+                        Valid
+                    )
+                |> ValidationResult.bind (validate (Some head) tail)
+            | _ -> Valid
             
         validate None blocks
 

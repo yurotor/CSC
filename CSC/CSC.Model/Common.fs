@@ -34,6 +34,60 @@ open NBitcoin.Secp256k1
             | _ -> i
         count 0 (hash |> List.ofArray)
 
+    type ResultBuilder() =
+           member __.Return(x) = Ok x
+           member __.Bind(m, f) = Result.bind f m
+           member __.Zero() = None
+           member __.Delay(f: unit -> _) = f
+           member __.Run(f) = f()
+           member __.ReturnFrom(m: Result<_, _>) = m
+           member __.TryWith(m, h) =
+               try __.ReturnFrom(m)
+               with e -> h e
+
+    let result = ResultBuilder()
+
+    [<AutoOpen>]
+    module Result =
+        let ofOption onMissing v =
+            match v with 
+            | Some x -> Ok x
+            | None -> Error onMissing 
+
+        let ofBool onFalse v = 
+            match v with 
+            | true -> Ok true
+            | false -> Error onFalse
+
+    type ValidationResult =
+        | Valid
+        | Invalid of string list
+
+    module ValidationResult =
+        let ofResult res =
+            match res with
+            | Ok _ -> Valid
+            | Error e -> Invalid [e]
+
+        let chain vr res =
+            match vr, res with
+            | Valid, Ok _ -> Valid
+            | Valid, Error e -> Invalid [e]
+            | Invalid l, Ok _ -> Invalid l
+            | Invalid l, Error e -> Invalid <| e :: l
+
+        let concat vr1 vr2 =
+            match vr1, vr2 with
+            | Valid, Valid -> Valid
+            | Valid, Invalid l -> Invalid l
+            | Invalid l, Valid -> Invalid l
+            | Invalid l1, Invalid l2 -> Invalid <| l1 @ l2
+
+        let bind f vr =
+            match vr with
+            | Valid -> vr
+            | Invalid l -> Invalid l
+
     module Crypto =
 
         let createPrivateKeyBytes =        

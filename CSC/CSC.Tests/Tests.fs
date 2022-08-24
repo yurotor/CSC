@@ -7,6 +7,8 @@ open FsUnit
 open NBitcoin.Secp256k1
 open System.Text
 open Crypto
+open Utils
+open Blockchain
 
     [<Fact>]
     let ``Create private key returns a 32 byte key`` () =
@@ -43,18 +45,8 @@ open Crypto
 
     [<Fact>]
     let ``Create blockchain with 10 blocks`` () =
-        let key = createPrivateKeyBytes 
-        let rec mine blocks threshold nonce lim =
-            let time = unixTime DateTime.Now
-            let tx = Wallet.createCoinbaseTransaction 100UL time key
-            let prevBlock = blocks |> List.tryHead
-            match Blockchain.tryCreateBlock prevBlock [ tx ] time threshold nonce with
-            | Some block -> 
-                if lim > (blocks |> List.length) then mine (block :: blocks) threshold nonce lim
-                else (block :: blocks)
-            | _ -> mine blocks threshold (Blockchain.nextNonce nonce) lim
-        
-        let blocks = mine [] 1 1UL 9
+        let key = createPrivateKeyBytes         
+        let blocks = createBlockchain 10 key
         blocks |> List.length |> should equal 10
 
     [<Fact>]
@@ -75,3 +67,10 @@ open Crypto
         match sign prkey msg with
         | Some s -> verifySig s pubkeyBytes msg |> should equal true
         | _ -> failwith "Failed to sign message"
+
+    [<Fact>]
+    let ``Validate blockchain`` () =
+        let key = createPrivateKeyBytes   
+        let threshold = 1
+        let blocks = createBlockchainWithThreshold 10 key threshold
+        validateBlockchain threshold blocks |> should equal Valid
