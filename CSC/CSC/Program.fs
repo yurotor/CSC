@@ -3,8 +3,7 @@ open System
 open CSC.IO
 open Crypto
 
-let key = createPrivateKeyBytes 
-let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
+
 
 //Wallet.save (fun w -> File.WriteAllText(wallet.name, w)) Serializer.serialize wallet
 
@@ -38,18 +37,18 @@ let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
 //            b
 //    )
 
-let blocks = loadBlockchain
-let newBlock =
-    Miner.mine 
-        key
-        blocks
-        DateTime.Now
-        1
-        1UL
+//let blocks = loadBlockchain
+//let newBlock =
+//    Miner.mine 
+//        key
+//        blocks
+//        DateTime.Now
+//        1
+//        1UL
 
-match newBlock with
-| Some block -> saveBlock block ((blocks |> List.length) + 1)
-| _ -> ()
+//match newBlock with
+//| Some block -> saveBlock block ((blocks |> List.length) + 1)
+//| _ -> ()
     //Blockchain.load 
     //    (fun i ->
     //        let path = Path.Combine(Directory.GetCurrentDirectory(), "Blockchain", (sprintf "%i.dat" i))
@@ -59,4 +58,31 @@ match newBlock with
     //            None
     //    )
 
-System.Console.ReadLine() |> ignore
+[<EntryPoint>]
+let main _ =
+    let mutable continueLooping = true
+    while continueLooping do
+        let key = createPrivateKeyBytes 
+        let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
+
+        let blocks = loadBlockchain
+        let newBlock =
+            Miner.mine 
+                key
+                blocks
+                DateTime.Now
+                1
+                1UL
+        match newBlock with
+        | Some block -> saveBlock block ((blocks |> List.length) + 1)
+        | _ -> ()
+
+        printfn "Mined new block"
+
+        match System.Console.ReadLine() with
+        | "q" -> 
+            continueLooping <- false
+            ()
+        | _ -> ()
+
+    0

@@ -2,17 +2,16 @@
 
 open Blockchain
 
-    type Client() =
-        
-        static member blockchain: ResizeArray<Block> = new ResizeArray<Block>()
+    let start _ =
+        ()
 
-        
+    let stop _ =
+        ()
 
-        static member run =
-            while true do
-                printfn "hi"
+    let pay _ =
+        ()
 
-            ()
+
 
 
                     
