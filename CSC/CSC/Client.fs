@@ -15,11 +15,20 @@ module Client =
         async {
             while continueLooping do
                 lock monitor (fun () ->
+                    let getMempoolTransactions max = 
+                        let touse, toremain =
+                            mempool
+                            |> List.indexed
+                            |> List.partition (fst >> (>) max)
+                        mempool <- toremain |> List.map snd
+                        touse |> List.map snd
+
                     let time = DateTime.Now
                     let newBlock =
                         Miner.mine 
                             key
                             blocks
+                            (getMempoolTransactions 1000)
                             time
                             4073709551615UL//18446744073709551615UL
                             1UL
@@ -27,7 +36,10 @@ module Client =
                     | Some block -> 
                         let count = ((blocks |> List.length) + 1)
                         printfn "Mined block #%i with nonce=%A after %A" count block.nonce (DateTime.Now.Subtract(time))
-                        printfn ""
+                        match block.transactions with
+                        | _ :: rest -> rest |> List.iter (fun tx -> printfn "Transaction %s" (describe tx))
+                        | _ -> ()
+                        
                         blocks <- block :: blocks
                         saveBlock block count
                     | _ -> ()
@@ -58,7 +70,7 @@ module Client =
         }
 
     let pay transaction =
-        mempool <- transaction :: mempool
+        lock monitor (fun () -> mempool <- transaction :: mempool)
 
 
 

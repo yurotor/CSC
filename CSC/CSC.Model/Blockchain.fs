@@ -1,6 +1,7 @@
 ﻿module Blockchain
 
 open Common.Crypto
+open System
 
     type TxInput = {
         prevTxId: Hash
@@ -166,3 +167,8 @@ open Common.Crypto
 
     let nextNonce nonce = 
         nonce + 1UL
+
+    let describe tx =
+        tx.outputs
+        |> List.map (fun o -> sprintf "%A to %i" o.value (BitConverter.ToUInt32(o.pubKeyHash)))
+        |> String.concat " "

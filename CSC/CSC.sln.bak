@@ -11,6 +11,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CSC.IO", "CSC.IO\CSC.IO.fsp
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CSC.Model", "CSC.Model\CSC.Model.fsproj", "{6B9A2B15-2C2F-445D-A77C-798D15AA0ECE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSC.UI", "CSC.UI\CSC.UI.csproj", "{F773D244-6CBB-4E0A-BAB6-63DA72A613DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

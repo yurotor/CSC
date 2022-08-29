@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="NBitcoin.Secp256k1" Version="3.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="Suave" Version="2.6.2" />
   </ItemGroup>
 
   <ItemGroup>

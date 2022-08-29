@@ -4,7 +4,12 @@ open CSC.IO
 open Crypto
 open CSC
 open Wallet
-
+open Suave
+open Suave.Filters
+open Suave.WebSocket
+open Suave.Operators
+open Suave.Sockets
+open Suave.Sockets.Control
 
 
 //Wallet.save (fun w -> File.WriteAllText(wallet.name, w)) Serializer.serialize wallet
@@ -79,6 +84,32 @@ let txcmd (cmd:string) =
 //yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
 //AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
+let ws (webSocket : WebSocket) (context: HttpContext) =
+    socket {
+        let mutable loop = true
+        while loop do
+            let! msg = webSocket.read()
+            match msg with
+            | (Text, data, true) ->
+                let str = UTF8.toString data
+                let response = sprintf "response to %s" str
+                let byteResponse =
+                            response
+                            |> System.Text.Encoding.UTF8.GetBytes
+                            |> ByteSegment
+                do! webSocket.send Text byteResponse true
+            | (Close, _, _) ->
+                let emptyResponse = [||] |> ByteSegment
+                do! webSocket.send Close emptyResponse true
+                loop <- false
+            | _ -> ()
+    }
+
+let app: WebPart =
+    choose [
+        path "/websocket" >=> handShake ws
+    ]
+
 [<EntryPoint>]
 let main _ =
     Miner.setLogger (printfn "%s")
@@ -86,6 +117,8 @@ let main _ =
     let minerKey = wallet.keys.Head
 
     Async.Start <| Client.start minerKey
+
+    startWebServer defaultConfig app
 
     //let k = createPrivateKeyBytes
     //let pk = createPubKeyBytes k
