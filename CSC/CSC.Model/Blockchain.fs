@@ -30,6 +30,7 @@ open Common.Crypto
 
     type UTXO = {
         transaction: Transaction
+        output: TxOutput
         index: int
     }
 
@@ -91,12 +92,11 @@ open Common.Crypto
 
                         t.outputs
                             |> List.fold
-                                (fun (u_, index) _ ->
-                                    ({ transaction = t; index = index } :: u_, index + 1)
+                                (fun (u_, index) o ->
+                                    ({ transaction = t; output = o; index = index } :: u_, index + 1)
                                 )
                                 (markSpentInputs, 0)
                             |> fst
-                        
                     )
                     utxos                
             )

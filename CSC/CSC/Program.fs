@@ -2,6 +2,8 @@
 open System
 open CSC.IO
 open Crypto
+open CSC
+open Wallet
 
 
 
@@ -59,52 +61,61 @@ open Crypto
     //    )
 
 let mutable continueLooping = true
-let start key blockchain =
-    async {
-        
-        let mutable blocks = blockchain//loadBlockchain
-        while continueLooping do
-            //printfn "Start mining at %A" (DateTime.Now)
-            let time = DateTime.Now
-            let newBlock =
-                Miner.mine 
-                    key
-                    blocks
-                    time
-                    4073709551615UL//18446744073709551615UL
-                    1UL
-            match newBlock with
-            | Some block -> 
-                let count = ((blocks |> List.length) + 1)
-                printfn "Mined block #%i with nonce=%A after %A" count block.nonce (DateTime.Now.Subtract(time))
-                printfn ""
-                blocks <- block :: blocks
-                saveBlock block count
-            | _ -> ()
-    }
 
 let txcmd (cmd:string) =
     //tx from to amount
     let parts = cmd.Split(' ')
     let mutable amount: uint64 = 0UL
     if parts |> Array.length = 4 && parts.[0] = "tx" && UInt64.TryParse(parts.[3], &amount) then
-        Some (parts.[1],parts.[2],amount)
+        Some (Convert.FromBase64String(parts.[1]), Convert.FromBase64String(parts.[2]), amount)
     else
         None
 
+//ukeselman
+//09V9BX8ikB7P/CDFXWghDWKD/uyrmOLsPdt2bWiS+bU=
+//A1QOL+SG0FJcxqABrE58PO2as1CeO6eAsv9yCJclNE0s
+
+//ukeselman2
+//yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
+//AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
 [<EntryPoint>]
 let main _ =
     Miner.setLogger (printfn "%s")
-    let key = createPrivateKeyBytes
-    Async.Start <| start key []
+    let wallet = load (fun name -> System.IO.File.ReadAllText(name)) Serializer.deserialize<Wallet.Wallet> "ukeselman"
+    let minerKey = wallet.keys.Head
+
+    Async.Start <| Client.start minerKey
+
+    //let k = createPrivateKeyBytes
+    //let pk = createPubKeyBytes k
+    //let wallet = { Wallet.name="ukeselman2";Wallet.keys=[k;pk] }
+    //Wallet.save (fun w -> System.IO.File.WriteAllText(wallet.name, w)) Serializer.serialize wallet
 
     while continueLooping do
-        match System.Console.ReadLine() with
+        match Console.ReadLine() with
         | "q" -> 
             continueLooping <- false
-            ()
+            Client.stop
         | cmd -> 
-            ()
+            let t = "tx 09V9BX8ikB7P/CDFXWghDWKD/uyrmOLsPdt2bWiS+bU= AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq 10" 
+            match txcmd t with
+            | Some (from, to_, amount) ->
+                let pubkey = createPubKeyBytes from
+                match Client.tryPay pubkey amount with
+                | Ok (utxos, total) -> 
+                    let inputs =
+                        utxos
+                        |> List.choose (createTransactionInput from)
+                    let output =
+                        createTransactionOutput to_ amount
+                    let change =
+                        createTransactionOutput pubkey (total - amount)
+                    let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
+
+                    Client.pay tx
+
+                | Error e -> printfn "%s" e
+            | _ -> ()
 
     0

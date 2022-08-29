@@ -29,16 +29,16 @@ open Crypto
     let createTransaction inputs outputs time =
         { inputs = inputs; outputs = outputs; time = time }
 
-    let createTransactionInput (spend: Transaction) index wallet =
-        match spend.outputs |> List.tryItem index, wallet.keys with
-        | Some utxo, key :: _ ->
-            let prevTxId = outputHash utxo
-            sign key (toSign prevTxId index)
-            |> Option.map (fun signature -> { prevTxId = prevTxId; prevTxIndex = index; pubKey = createPubKeyBytes key; signature = signature })
-        | _ -> None
+    let createTransactionInput key (utxo: UTXO) =
+        let prevTxId = outputHash utxo.output
+        sign key (toSign prevTxId utxo.index)
+        |> Option.map 
+            (fun signature -> 
+                { prevTxId = prevTxId; 
+                  prevTxIndex = utxo.index; 
+                  pubKey = createPubKeyBytes key; 
+                  signature = signature })
 
-    let createTransactionOutput value wallet =
-        match wallet.keys with
-        | key :: _ -> Some { value = value; pubKeyHash = key |> createPubKeyBytes |> hash }
-        | _ -> None
+    let createTransactionOutput key value =
+        { value = value; pubKeyHash = key |> createPubKeyBytes |> hash }
 

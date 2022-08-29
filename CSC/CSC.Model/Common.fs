@@ -111,7 +111,7 @@ open NBitcoin.Secp256k1
             buffer.ToArray ()
 
         let toSign prevTxId index =
-            Array.concat [prevTxId; bytesOf (index.ToString())]
+            Array.concat [prevTxId; bytesOf (index.ToString())] |> hash
         
         let sign key data =
             let prKey = createPrivateKey key
