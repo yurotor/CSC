@@ -16,7 +16,7 @@ open System
         |> List.rev
 
     let createBlockchain size key =        
-        createBlockchainInner size key 1 1UL
+        createBlockchainInner size key 18446744073709551615UL 1UL
 
     let createBlockchainWithThreshold size key threshold =
         createBlockchainInner size key threshold 1UL

@@ -71,6 +71,6 @@ open Blockchain
     [<Fact>]
     let ``Validate blockchain`` () =
         let key = createPrivateKeyBytes   
-        let threshold = 1
+        let threshold = 18446744073709551615UL
         let blocks = createBlockchainWithThreshold 10 key threshold
         validateBlockchain threshold blocks |> should equal Valid

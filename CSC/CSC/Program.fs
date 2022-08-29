@@ -58,31 +58,53 @@ open Crypto
     //            None
     //    )
 
+let mutable continueLooping = true
+let start key blockchain =
+    async {
+        
+        let mutable blocks = blockchain//loadBlockchain
+        while continueLooping do
+            //printfn "Start mining at %A" (DateTime.Now)
+            let time = DateTime.Now
+            let newBlock =
+                Miner.mine 
+                    key
+                    blocks
+                    time
+                    4073709551615UL//18446744073709551615UL
+                    1UL
+            match newBlock with
+            | Some block -> 
+                let count = ((blocks |> List.length) + 1)
+                printfn "Mined block #%i with nonce=%A after %A" count block.nonce (DateTime.Now.Subtract(time))
+                printfn ""
+                blocks <- block :: blocks
+                saveBlock block count
+            | _ -> ()
+    }
+
+let txcmd (cmd:string) =
+    //tx from to amount
+    let parts = cmd.Split(' ')
+    let mutable amount: uint64 = 0UL
+    if parts |> Array.length = 4 && parts.[0] = "tx" && UInt64.TryParse(parts.[3], &amount) then
+        Some (parts.[1],parts.[2],amount)
+    else
+        None
+
+
 [<EntryPoint>]
 let main _ =
-    let mutable continueLooping = true
+    Miner.setLogger (printfn "%s")
+    let key = createPrivateKeyBytes
+    Async.Start <| start key []
+
     while continueLooping do
-        let key = createPrivateKeyBytes 
-        let wallet = {Wallet.name="ukeselman";Wallet.keys=[key]}
-
-        let blocks = loadBlockchain
-        let newBlock =
-            Miner.mine 
-                key
-                blocks
-                DateTime.Now
-                1
-                1UL
-        match newBlock with
-        | Some block -> saveBlock block ((blocks |> List.length) + 1)
-        | _ -> ()
-
-        printfn "Mined new block"
-
         match System.Console.ReadLine() with
         | "q" -> 
             continueLooping <- false
             ()
-        | _ -> ()
+        | cmd -> 
+            ()
 
     0

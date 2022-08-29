@@ -67,7 +67,7 @@ open Common.Crypto
         let block = 
             { prevBlockHeaderHash = prevBlockHeaderHash; content = content; time = time; nonce = nonce; transactions = transactions }
 
-        if block |> blockHeaderHash |> leadingZeros >= threshold then
+        if block |> blockHeaderHash |> hashToNumber < threshold then
             Some block
         else
             None
@@ -144,7 +144,7 @@ open Common.Crypto
             |> Result.ofBool "Block content mismatch"
             |> ValidationResult.ofResult)
         |> ValidationResult.concat  
-            (block |> blockHeaderHash |> leadingZeros >= threshold
+            (block |> blockHeaderHash |> hashToNumber < threshold
             |> Result.ofBool "Invalid nonce"
             |> ValidationResult.ofResult)
 
