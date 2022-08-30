@@ -1,4 +1,9 @@
 **/.vs
 **/bin
 **/obj
-
+**/elm-stuff
+**/node_modules
+**/public/*.compiled.*
+**/package-lock.json
+*.user 
+*.suo
