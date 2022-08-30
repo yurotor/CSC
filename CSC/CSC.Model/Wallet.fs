@@ -7,11 +7,8 @@ open Crypto
     
     type Wallet = {
         name: string
-        keys: Key list
+        key: Key
     }
-
-    let addKeyToWallet key wallet =
-        { wallet with keys = key :: wallet.keys }
 
     let save saver serializer wallet =
         wallet |> serializer |> saver

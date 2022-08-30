@@ -36,12 +36,13 @@ open Blockchain
     [<Fact>]
     let ``Wallet save and load keeps all keys`` () =
         let mutable storage = ""
-        let wallet = { Wallet.name="ukeselman";Wallet.keys=[createPrivateKeyBytes;createPrivateKeyBytes] }
+        let wallet = { Wallet.name="ukeselman";Wallet.key=createPrivateKeyBytes }
         Wallet.save (fun w -> storage <- w) Serializer.serialize wallet
         let wallet2 = Wallet.load (fun _ -> storage) Serializer.deserialize<Wallet.Wallet> wallet.name
-        match wallet.keys, wallet2.keys with
-        | k11::k12::_, k21::k22::_ when k11=k21 && k12=k22 -> true
-        | _ -> failwith "Wallets don't contain keys"
+        wallet.key |> should equal wallet2.key
+        //match wallet.key, wallet2.key with
+        //| k1::k12::_, k21::k22::_ when k11=k21 && k12=k22 -> true
+        //| _ -> failwith "Wallets don't contain keys"
 
     [<Fact>]
     let ``Create blockchain with 10 blocks`` () =

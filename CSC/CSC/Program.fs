@@ -67,6 +67,21 @@ open Suave.Sockets.Control
 
 let mutable continueLooping = true
 
+type Command =
+    | GetBalance of Key
+    | Pay of Key * Key * uint64
+    | Undefined
+
+let parseCommand (cmd: string)  =
+    let parts = cmd.Split(' ')
+    match parts |> List.ofArray with
+    | tp :: key :: _ when tp = "balance" -> GetBalance (Convert.FromBase64String(key))
+    | tp :: from :: to_ :: am :: _ when tp = "tx" -> 
+        let mutable amount: uint64 = 0UL
+        if UInt64.TryParse(am, &amount) then Pay (Convert.FromBase64String(from), Convert.FromBase64String(to_), amount)
+        else Undefined
+    | _ -> Undefined
+
 let txcmd (cmd:string) =
     //tx from to amount
     let parts = cmd.Split(' ')
@@ -91,13 +106,24 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
             let! msg = webSocket.read()
             match msg with
             | (Text, data, true) ->
-                let str = UTF8.toString data
-                let response = sprintf "response to %s" str
-                let byteResponse =
-                            response
-                            |> System.Text.Encoding.UTF8.GetBytes
-                            |> ByteSegment
-                do! webSocket.send Text byteResponse true
+                match data |> UTF8.toString |> parseCommand with
+                | GetBalance key -> 
+                    let pybky = key |> createPubKeyBytes |> (fun x -> Convert.ToBase64String(x))
+                    let response =
+                        key 
+                        |> createPubKeyBytes
+                        |> Client.getBalance 
+                        |> (sprintf "%i")
+                        |> System.Text.Encoding.UTF8.GetBytes
+                        |> ByteSegment
+                    do! webSocket.send Text response true
+                //let str = UTF8.toString data
+                //let response = sprintf "response to %s" str
+                //let byteResponse =
+                //            response
+                //            |> System.Text.Encoding.UTF8.GetBytes
+                //            |> ByteSegment
+                | _ -> ()
             | (Close, _, _) ->
                 let emptyResponse = [||] |> ByteSegment
                 do! webSocket.send Close emptyResponse true
@@ -114,11 +140,11 @@ let app: WebPart =
 let main _ =
     Miner.setLogger (printfn "%s")
     let wallet = load (fun name -> System.IO.File.ReadAllText(name)) Serializer.deserialize<Wallet.Wallet> "ukeselman"
-    let minerKey = wallet.keys.Head
+    let minerKey = wallet.key
 
     Async.Start <| Client.start minerKey
-
-    startWebServer defaultConfig app
+    Async.Start <| async { startWebServer defaultConfig app }
+    
 
     //let k = createPrivateKeyBytes
     //let pk = createPubKeyBytes k
@@ -130,25 +156,33 @@ let main _ =
         | "q" -> 
             continueLooping <- false
             Client.stop
-        | cmd -> 
-            let t = "tx 09V9BX8ikB7P/CDFXWghDWKD/uyrmOLsPdt2bWiS+bU= AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq 10" 
-            match txcmd t with
-            | Some (from, to_, amount) ->
-                let pubkey = createPubKeyBytes from
-                match Client.tryPay pubkey amount with
-                | Ok (utxos, total) -> 
-                    let inputs =
-                        utxos
-                        |> List.choose (createTransactionInput from)
-                    let output =
-                        createTransactionOutput to_ amount
-                    let change =
-                        createTransactionOutput pubkey (total - amount)
-                    let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
-
-                    Client.pay tx
-
-                | Error e -> printfn "%s" e
+        | _ -> 
+            let t = "balance A1QOL+SG0FJcxqABrE58PO2as1CeO6eAsv9yCJclNE0s"
+            let cmd = parseCommand t
+            match cmd with
+            | GetBalance k -> 
+                printfn "%i" (Client.getBalance k)
             | _ -> ()
+            //"tx 09V9BX8ikB7P/CDFXWghDWKD/uyrmOLsPdt2bWiS+bU= AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq 10" 
+            //match txcmd t with
+            //| Some (from, to_, amount) ->
+            //    let pubkey = createPubKeyBytes from
+            //    match Client.tryPay pubkey amount with
+            //    | Ok (utxos, total) -> 
+            //        let inputs =
+            //            utxos
+            //            |> List.choose (createTransactionInput from)
+            //        let output =
+            //            createTransactionOutput to_ amount
+            //        let change =
+            //            createTransactionOutput pubkey (total - amount)
+            //        let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
+
+            //        Client.pay tx
+
+            //    | Error e -> printfn "%s" e
+            //| _ -> ()
+
+    
 
     0

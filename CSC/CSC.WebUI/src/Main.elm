@@ -8,6 +8,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as D exposing (decodeString)
 import Task exposing (Task)
+import Time
 
 
 
@@ -40,20 +41,19 @@ port messageReceiver : (String -> msg) -> Sub msg
 
 type alias Wallet =
     { name : String
-    , keys : List String
+    , key : String
     }
 
 
 type alias Model =
-    { draft : String
-    , messages : List String
-    , wallet : Wallet
+    { wallet : Wallet
+    , balance : Int
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { draft = "", messages = [], wallet = Wallet "" [] }
+    ( { wallet = Wallet "" "", balance = 0 }
     , Cmd.none
     )
 
@@ -63,11 +63,10 @@ init flags =
 
 
 type Msg
-    = DraftChanged String
-    | Send
-    | Recv String
-    | GotFiles (List File)
+    = GotFiles (List File)
     | MarkdownLoaded String
+    | Recv String
+    | Tick Time.Posix
 
 
 
@@ -80,21 +79,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        DraftChanged draft ->
-            ( { model | draft = draft }
-            , Cmd.none
-            )
-
-        Send ->
-            ( { model | draft = "" }
-            , sendMessage model.draft
-            )
-
-        Recv message ->
-            ( { model | messages = model.messages ++ [ message ] }
-            , Cmd.none
-            )
-
         GotFiles files ->
             let
                 cmd =
@@ -107,20 +91,35 @@ update msg model =
             in
             ( model, cmd )
 
-        --Task.perform MarkdownLoaded (File.toString file) )
         MarkdownLoaded data ->
             let
-                wallet =
+                ( wallet, cmd ) =
                     case data |> Codec.decodeString walletDecoder of
                         Ok w ->
-                            w
+                            ( w, sendMessage ("balance " ++ w.key) )
 
                         Err _ ->
-                            Wallet "invalid" []
+                            ( Wallet "invalid" "", Cmd.none )
             in
             ( { model | wallet = wallet }
-            , sendMessage model.draft
+            , cmd
             )
+
+        Recv message ->
+            ( { model | balance = String.toInt message |> Maybe.withDefault 0 }
+            , Cmd.none
+            )
+
+        Tick _ ->
+            let
+                cmd =
+                    if model.wallet.key |> String.isEmpty then
+                        Cmd.none
+
+                    else
+                        sendMessage ("balance " ++ model.wallet.key)
+            in
+            ( model, cmd )
 
 
 
@@ -133,7 +132,10 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    messageReceiver Recv
+    Sub.batch
+        [ messageReceiver Recv
+        , Time.every 1000 Tick
+        ]
 
 
 
@@ -143,25 +145,14 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     div []
-        [ h1 [] [ text "Echo Chat" ]
-        , ul []
-            (List.map (\msg -> li [] [ text msg ]) model.messages)
-        , input
-            [ type_ "text"
-            , placeholder "Draft"
-            , onInput DraftChanged
-            , on "keydown" (ifIsEnter Send)
-            , value model.draft
-            ]
-            []
-        , button [ onClick Send ] [ text "Send" ]
-        , input
+        [ input
             [ type_ "file"
             , multiple False
             , on "change" (D.map GotFiles filesDecoder)
             ]
             []
-        , h1 [] [ text ("-" ++ model.wallet.name ++ "-") ]
+        , h1 [] [ text ("Wallet: " ++ model.wallet.name) ]
+        , h1 [] [ text ("Balance: " ++ String.fromInt model.balance ++ " $") ]
         ]
 
 
@@ -191,5 +182,5 @@ walletDecoder : Codec Wallet
 walletDecoder =
     Codec.object Wallet
         |> Codec.field "name" .name Codec.string
-        |> Codec.field "keys" .keys (Codec.list Codec.string)
+        |> Codec.field "key" .key Codec.string
         |> Codec.buildObject

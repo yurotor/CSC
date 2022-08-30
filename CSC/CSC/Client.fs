@@ -69,6 +69,12 @@ module Client =
             else return! Ok (useutxos, total)
         }
 
+    let getBalance pubkey =
+        blocks
+        |> getUTXOSet 
+        |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        |> List.sumBy (fun u -> u.output.value) 
+
     let pay transaction =
         lock monitor (fun () -> mempool <- transaction :: mempool)
 
