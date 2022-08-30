@@ -75,3 +75,24 @@ open Blockchain
         let threshold = 18446744073709551615UL
         let blocks = createBlockchainWithThreshold 10 key threshold
         validateBlockchain threshold blocks |> should equal Valid
+
+    [<Fact>]
+    let ``Check balance after payment`` () =
+        let key = createPrivateKeyBytes 
+        let pubkey = createPubKeyBytes key
+        let receiverKeys = ("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=", "AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq")
+        let payto = receiverKeys |> snd |> (fun x -> Convert.FromBase64String(x))
+        let amount = 10UL
+        let threshold = 18446744073709551615UL
+        let blocks = createBlockchainWithThreshold 1 key threshold
+        let balanceBefore = Wallet.getBalance pubkey blocks
+        match Wallet.tryPay blocks pubkey amount with
+        | Ok (utxos, total) ->
+            let tx = Wallet.buildTransaction pubkey (unixTime DateTime.Now) utxos total key payto amount
+            match Miner.mine key blocks [tx] DateTime.Now threshold 1UL with
+            | Some block ->
+                let balanceAfter = Wallet.getBalance pubkey (block :: blocks)
+                balanceAfter |> should equal (balanceBefore - amount)
+            | _ -> failwith "Failed to mine new block"
+        | Error e -> failwith e
+                

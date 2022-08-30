@@ -39,6 +39,13 @@ port messageReceiver : (String -> msg) -> Sub msg
 -- MODEL
 
 
+type PaymentStatus
+    = None
+    | Waiting
+    | Paid
+    | Failed String
+
+
 type alias Wallet =
     { name : String
     , key : String
@@ -48,12 +55,15 @@ type alias Wallet =
 type alias Model =
     { wallet : Wallet
     , balance : Int
+    , to : String
+    , amount : String
+    , paymentStatus : PaymentStatus
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init flags =
-    ( { wallet = Wallet "" "", balance = 0 }
+    ( { wallet = Wallet "" "", balance = 0, to = "AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq", amount = "10", paymentStatus = None }
     , Cmd.none
     )
 
@@ -67,6 +77,9 @@ type Msg
     | MarkdownLoaded String
     | Recv String
     | Tick Time.Posix
+    | ToChanged String
+    | AmountChanged String
+    | PayClicked
 
 
 
@@ -106,9 +119,7 @@ update msg model =
             )
 
         Recv message ->
-            ( { model | balance = String.toInt message |> Maybe.withDefault 0 }
-            , Cmd.none
-            )
+            handleResponse model message
 
         Tick _ ->
             let
@@ -120,6 +131,47 @@ update msg model =
                         sendMessage ("balance " ++ model.wallet.key)
             in
             ( model, cmd )
+
+        ToChanged to ->
+            ( { model | to = to }, Cmd.none )
+
+        AmountChanged amount ->
+            ( { model | amount = amount }, Cmd.none )
+
+        PayClicked ->
+            let
+                ( m, cmd ) =
+                    case model.amount |> String.toInt of
+                        Just am ->
+                            ( { model | paymentStatus = Waiting }
+                            , sendMessage ("tx " ++ model.wallet.key ++ " " ++ model.to ++ " " ++ model.amount)
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+            in
+            ( m, cmd )
+
+
+handleResponse : Model -> String -> ( Model, Cmd Msg )
+handleResponse model message =
+    case message |> String.split " " of
+        cmd :: prms ->
+            case ( cmd, prms ) of
+                ( "balance", bal :: _ ) ->
+                    ( { model | balance = String.toInt bal |> Maybe.withDefault 0 }, Cmd.none )
+
+                ( "payok", _ ) ->
+                    ( { model | paymentStatus = Paid }, Cmd.none )
+
+                ( "payerr", err :: _ ) ->
+                    ( { model | paymentStatus = Failed err }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
 
 
 
@@ -134,7 +186,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ messageReceiver Recv
-        , Time.every 1000 Tick
+        , Time.every 30000 Tick
         ]
 
 
@@ -153,6 +205,11 @@ view model =
             []
         , h1 [] [ text ("Wallet: " ++ model.wallet.name) ]
         , h1 [] [ text ("Balance: " ++ String.fromInt model.balance ++ " $") ]
+        , div []
+            [ input [ placeholder "To address", value model.to, onInput ToChanged ] []
+            , input [ placeholder "Amount", value model.amount, onInput AmountChanged ] []
+            , button [ onClick PayClicked ] [ text "Pay" ]
+            ]
         ]
 
 

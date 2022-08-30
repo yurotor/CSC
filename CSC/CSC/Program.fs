@@ -108,12 +108,11 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
             | (Text, data, true) ->
                 match data |> UTF8.toString |> parseCommand with
                 | GetBalance key -> 
-                    let pybky = key |> createPubKeyBytes |> (fun x -> Convert.ToBase64String(x))
                     let response =
                         key 
                         |> createPubKeyBytes
                         |> Client.getBalance 
-                        |> (sprintf "%i")
+                        |> (sprintf "balance %i")
                         |> System.Text.Encoding.UTF8.GetBytes
                         |> ByteSegment
                     do! webSocket.send Text response true
@@ -123,6 +122,27 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                 //            response
                 //            |> System.Text.Encoding.UTF8.GetBytes
                 //            |> ByteSegment
+                | Pay (from, to_, amount) ->
+                    let pubkey = createPubKeyBytes from
+                    let response = 
+                        match Client.tryPay pubkey amount with
+                        | Ok (utxos, total) -> 
+                            let inputs =
+                                utxos
+                                |> List.choose (createTransactionInput from)
+                            let output =
+                                createTransactionOutput to_ amount
+                            let change =
+                                createTransactionOutput pubkey (total - amount)
+                            let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
+
+                            Client.pay tx
+                            sprintf "payok"
+
+                        | Error e -> sprintf "payerr %s" e
+                        |> System.Text.Encoding.UTF8.GetBytes
+                        |> ByteSegment
+                    do! webSocket.send Text response true
                 | _ -> ()
             | (Close, _, _) ->
                 let emptyResponse = [||] |> ByteSegment

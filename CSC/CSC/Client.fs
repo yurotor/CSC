@@ -50,30 +50,18 @@ module Client =
         lock monitor (fun () -> continueLooping <- true)
 
     let tryPay pubkey amount =
-        result {
-            let utxos = getUTXOSet blocks
-            let myutxos = 
-                utxos
-                |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
-                |> List.sortByDescending (fun utxo -> utxo.output.value)
-            let useutxos =
-                myutxos
-                |> List.fold 
-                    (fun lst utxo ->
-                        if lst |> List.sumBy (fun u -> u.output.value) >= amount then lst
-                        else utxo :: lst
-                    )
-                    []
-            let total = useutxos |> List.sumBy (fun u -> u.output.value) 
-            if total < amount then return! Error "Not enough funds"
-            else return! Ok (useutxos, total)
-        }
+        Wallet.tryPay blocks pubkey amount
 
     let getBalance pubkey =
-        blocks
-        |> getUTXOSet 
-        |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
-        |> List.sumBy (fun u -> u.output.value) 
+        let utxos = getUTXOSet blocks
+        let myutxos = 
+            utxos
+            |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        myutxos |> List.sumBy (fun u -> u.output.value)
+        //blocks
+        //|> getUTXOSet 
+        //|> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        //|> List.sumBy (fun u -> u.output.value) 
 
     let pay transaction =
         lock monitor (fun () -> mempool <- transaction :: mempool)

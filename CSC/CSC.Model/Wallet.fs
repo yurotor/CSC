@@ -39,3 +39,43 @@ open Crypto
     let createTransactionOutput key value =
         { value = value; pubKeyHash = key |> createPubKeyBytes |> hash }
 
+    let tryPay blocks pubkey amount =
+        result {
+            let utxos = getUTXOSet blocks
+            let myutxos = 
+                utxos
+                |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+                |> List.sortByDescending (fun utxo -> utxo.output.value)
+            let useutxos =
+                myutxos
+                |> List.fold 
+                    (fun lst utxo ->
+                        if lst |> List.sumBy (fun u -> u.output.value) >= amount then lst
+                        else utxo :: lst
+                    )
+                    []
+            let total = useutxos |> List.sumBy (fun u -> u.output.value) 
+            if total < amount then return! Error "Not enough funds"
+            else return! Ok (useutxos, total)
+        }
+
+    let buildTransaction pubkey time utxos total from to_ amount =
+        let inputs =
+            utxos
+            |> List.choose (createTransactionInput from)
+        let output =
+            createTransactionOutput to_ amount
+        let change =
+            createTransactionOutput pubkey (total - amount)
+        createTransaction inputs [output; change] time
+
+    let getBalance pubkey blocks =
+        let utxos = getUTXOSet blocks
+        let myutxos = 
+            utxos
+            |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        myutxos |> List.sumBy (fun u -> u.output.value)
+        //blocks
+        //|> getUTXOSet 
+        //|> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        //|> List.sumBy (fun u -> u.output.value) 
