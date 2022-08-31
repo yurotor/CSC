@@ -127,14 +127,15 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                     let response = 
                         match Client.tryPay pubkey amount with
                         | Ok (utxos, total) -> 
-                            let inputs =
-                                utxos
-                                |> List.choose (createTransactionInput from)
-                            let output =
-                                createTransactionOutput to_ amount
-                            let change =
-                                createTransactionOutput pubkey (total - amount)
-                            let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
+                            //let inputs =
+                            //    utxos
+                            //    |> List.choose (createTransactionInput from)
+                            //let output =
+                            //    createTransactionOutput to_ amount
+                            //let change =
+                            //    createTransactionOutput pubkey (total - amount)
+                            //let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
+                            let tx = buildTransaction (unixTime DateTime.Now) utxos total from to_ amount 
 
                             Client.pay tx
                             sprintf "payok"

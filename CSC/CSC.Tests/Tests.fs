@@ -78,20 +78,23 @@ open Blockchain
 
     [<Fact>]
     let ``Check balance after payment`` () =
-        let key = createPrivateKeyBytes 
-        let pubkey = createPubKeyBytes key
-        let receiverKeys = ("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=", "AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq")
-        let payto = receiverKeys |> snd |> (fun x -> Convert.FromBase64String(x))
+        let minerKey = Convert.FromBase64String("Zpv9z9EWnUIXbejcDbpjW8Ed/fDr80ltN38M/Hpa1+8=")
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        payerKey |> should not' (equal receiverKey)
+        
         let amount = 10UL
         let threshold = 18446744073709551615UL
-        let blocks = createBlockchainWithThreshold 1 key threshold
-        let balanceBefore = Wallet.getBalance pubkey blocks
-        match Wallet.tryPay blocks pubkey amount with
+        let blocks = createBlockchainWithThreshold 1 payerKey threshold
+        let balanceBefore = Wallet.getBalance payerPubKey blocks
+        match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
-            let tx = Wallet.buildTransaction pubkey (unixTime DateTime.Now) utxos total key payto amount
-            match Miner.mine key blocks [tx] DateTime.Now threshold 1UL with
+            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
+            match Miner.mine minerKey blocks [tx] DateTime.Now threshold 1UL with
             | Some block ->
-                let balanceAfter = Wallet.getBalance pubkey (block :: blocks)
+                let balanceAfter = Wallet.getBalance payerPubKey (List.rev (block :: blocks))
                 balanceAfter |> should equal (balanceBefore - amount)
             | _ -> failwith "Failed to mine new block"
         | Error e -> failwith e

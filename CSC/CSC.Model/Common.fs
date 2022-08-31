@@ -11,11 +11,17 @@ open NBitcoin.Secp256k1
     type Signature = byte array
 
     module Key =
+        let mutable rand: Random = null
+        let mutable monitor = System.Object()
         let generate =
-            let rand = System.Random()
-            let buffer = Array.create<byte> 32 0uy
-            rand.NextBytes(buffer)
-            buffer
+            lock monitor (fun () ->
+                if rand = null then rand <- new System.Random()
+
+                let buffer = Array.create<byte> 32 0uy
+                rand.NextBytes(buffer)
+                buffer
+            )
+            
 
     let hash (x: byte array) : byte array =
         use sha256 = SHA256.Create()

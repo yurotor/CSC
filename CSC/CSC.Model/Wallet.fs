@@ -16,9 +16,6 @@ open Crypto
     let load loader deserializer walletName = 
         walletName |> loader |> deserializer
 
-    let outputHash output =
-        Array.concat [bytesOf (output.value.ToString()); output.pubKeyHash] |> hash
-
     let createCoinbaseTransaction value time key =
         let pubKeyHash = key |> createPubKeyBytes |> hash
         { inputs = []; outputs = [{ value = value; pubKeyHash = pubKeyHash }]; time = time }
@@ -36,8 +33,8 @@ open Crypto
                   pubKey = createPubKeyBytes key; 
                   signature = signature })
 
-    let createTransactionOutput key value =
-        { value = value; pubKeyHash = key |> createPubKeyBytes |> hash }
+    let createTransactionOutput pubkey value =
+        { value = value; pubKeyHash = pubkey |> hash }
 
     let tryPay blocks pubkey amount =
         result {
@@ -59,14 +56,14 @@ open Crypto
             else return! Ok (useutxos, total)
         }
 
-    let buildTransaction pubkey time utxos total from to_ amount =
+    let buildTransaction time utxos total payerKey receiverPubkey amount =
         let inputs =
             utxos
-            |> List.choose (createTransactionInput from)
+            |> List.choose (createTransactionInput payerKey)
         let output =
-            createTransactionOutput to_ amount
+            createTransactionOutput receiverPubkey amount
         let change =
-            createTransactionOutput pubkey (total - amount)
+            createTransactionOutput (createPubKeyBytes payerKey) (total - amount)
         createTransaction inputs [output; change] time
 
     let getBalance pubkey blocks =

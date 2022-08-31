@@ -35,6 +35,9 @@ open System
         index: int
     }
 
+    let outputHash output =
+        Array.concat [bytesOf (output.value.ToString()); output.pubKeyHash] |> hash
+
     let toBytes transaction =
         [
         transaction.inputs
@@ -85,7 +88,7 @@ open System
                             t.inputs
                             |> List.fold
                                 (fun u_ input ->
-                                    match u_ |> List.tryFindIndex (fun i -> toBytes i.transaction = input.prevTxId) with
+                                    match u_ |> List.tryFindIndex (fun i -> outputHash i.output = input.prevTxId) with
                                     | Some index -> u_ |> List.removeAt index
                                     | _ -> u_
                                 )
