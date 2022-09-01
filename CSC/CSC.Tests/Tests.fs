@@ -9,6 +9,7 @@ open System.Text
 open Crypto
 open Utils
 open Blockchain
+open CSC
 
     [<Fact>]
     let ``Create private key returns a 32 byte key`` () =
@@ -99,3 +100,19 @@ open Blockchain
             | _ -> failwith "Failed to mine new block"
         | Error e -> failwith e
                 
+    [<Fact>]
+    let ``Verify paid transaction is in mempool`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let amount = 10UL
+        let threshold = 18446744073709551615UL
+        let blocks = createBlockchainWithThreshold 1 payerKey threshold
+        match Wallet.tryPay blocks payerPubKey amount with
+        | Ok (utxos, total) ->
+            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
+            Client.pay tx
+            let count = Client.getTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
+            count |> should equal 1 
+        | Error e -> failwith e

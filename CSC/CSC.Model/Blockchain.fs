@@ -35,6 +35,18 @@ open System
         index: int
     }
 
+    type UserTransactionType =
+        | Incoming
+        | Outgoing
+        | Mined
+
+    type UserTransaction = {
+        confirmed: bool
+        type_: UserTransactionType
+        amount: uint64
+        address: string
+    }
+
     let outputHash output =
         Array.concat [bytesOf (output.value.ToString()); output.pubKeyHash] |> hash
 
@@ -105,6 +117,12 @@ open System
                     utxos                
             )
             []
+
+    let findOutputByInput blocks input =
+        blocks
+        |> List.map (fun block -> block.transactions |> List.map (fun t -> t.outputs) |> List.concat)
+        |> List.concat
+        |> List.tryFind (fun o -> outputHash o = input.prevTxId)
 
     let validateTransaction blocks transaction =
         transaction.inputs
