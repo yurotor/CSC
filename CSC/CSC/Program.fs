@@ -99,6 +99,8 @@ let txcmd (cmd:string) =
 //yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
 //AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
+let mutable server: Server = Server(saveBlock)
+
 let ws (webSocket : WebSocket) (context: HttpContext) =
     socket {
         let mutable loop = true
@@ -111,35 +113,16 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                     let response =
                         key 
                         |> createPubKeyBytes
-                        |> Client.getBalance 
+                        |> server.GetBalance
                         |> (sprintf "balance %i")
                         |> System.Text.Encoding.UTF8.GetBytes
                         |> ByteSegment
                     do! webSocket.send Text response true
-                //let str = UTF8.toString data
-                //let response = sprintf "response to %s" str
-                //let byteResponse =
-                //            response
-                //            |> System.Text.Encoding.UTF8.GetBytes
-                //            |> ByteSegment
+            
                 | Pay (from, to_, amount) ->
-                    let pubkey = createPubKeyBytes from
                     let response = 
-                        match Client.tryPay pubkey amount with
-                        | Ok (utxos, total) -> 
-                            //let inputs =
-                            //    utxos
-                            //    |> List.choose (createTransactionInput from)
-                            //let output =
-                            //    createTransactionOutput to_ amount
-                            //let change =
-                            //    createTransactionOutput pubkey (total - amount)
-                            //let tx = createTransaction inputs [output; change] (unixTime DateTime.Now)
-                            let tx = buildTransaction (unixTime DateTime.Now) utxos total from to_ amount 
-
-                            Client.pay tx
-                            sprintf "payok"
-
+                        match server.Pay from to_ amount with
+                        | Ok _ -> sprintf "payok"
                         | Error e -> sprintf "payerr %s" e
                         |> System.Text.Encoding.UTF8.GetBytes
                         |> ByteSegment
@@ -163,7 +146,7 @@ let main _ =
     let wallet = load (fun name -> System.IO.File.ReadAllText(name)) Serializer.deserialize<Wallet.Wallet> "ukeselman"
     let minerKey = wallet.key
 
-    Async.Start <| Client.start minerKey
+    Async.Start <| server.Start minerKey
     Async.Start <| async { startWebServer defaultConfig app }
     
 
@@ -176,13 +159,13 @@ let main _ =
         match Console.ReadLine() with
         | "q" -> 
             continueLooping <- false
-            Client.stop
+            server.Stop
         | _ -> 
             let t = "balance A1QOL+SG0FJcxqABrE58PO2as1CeO6eAsv9yCJclNE0s"
             let cmd = parseCommand t
             match cmd with
             | GetBalance k -> 
-                printfn "%i" (Client.getBalance k)
+                printfn "%i" (server.GetBalance k)
             | _ -> ()
             //"tx 09V9BX8ikB7P/CDFXWghDWKD/uyrmOLsPdt2bWiS+bU= AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq 10" 
             //match txcmd t with

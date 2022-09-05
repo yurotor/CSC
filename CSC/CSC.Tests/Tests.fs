@@ -100,15 +100,14 @@ open CSC
         let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
         let receiverPubkey = createPubKeyBytes receiverKey
         let payerKey = createPrivateKeyBytes
-        let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
-        let countBefore = Client.getTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
-        match Wallet.tryPay blocks payerPubKey amount with
-        | Ok (utxos, total) ->
-            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            Client.pay tx
-            let transactions = Client.getTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
+        let server = defaultServer ()
+        let countBefore = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
+        server.InitBlocks blocks
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok _ ->
+            let transactions = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
             transactions |> List.length |> should equal (countBefore + 1)
             match transactions with
             | t :: _ -> t.confirmed |> should equal false
@@ -124,14 +123,15 @@ open CSC
         let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
-        let countBefore = Client.getTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
+        let server = defaultServer ()
+        let countBefore = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
             match Miner.mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
             | Some block ->
-                Client.initBlocks (block :: blocks)
-                let transactions = Client.getTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
+                server.InitBlocks (block :: blocks)
+                let transactions = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
                 transactions |> List.length |> should equal (countBefore + 1)
                 match transactions with
                 | t :: _ -> t.confirmed |> should equal true
@@ -147,13 +147,11 @@ open CSC
         let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
-        Client.initBlocks blocks
-        Client.initBlocksPersistance (fun _ _ -> ())
-        Async.Start <| Client.start payerKey
-        match Client.tryPay payerPubKey amount with
-        | Ok (utxos, total) -> 
-            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            Client.pay tx
-            let txcount = Client.getTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing) |> List.length
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        Async.Start <| server.Start payerKey
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok tx ->             
+            let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing) |> List.length
             txcount |> should equal 1
         | Error e -> failwith e
