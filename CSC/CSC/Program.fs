@@ -4,6 +4,7 @@ open CSC.IO
 open Crypto
 open CSC
 open Wallet
+open Blockchain
 open Suave
 open Suave.Filters
 open Suave.WebSocket
@@ -70,6 +71,7 @@ let mutable continueLooping = true
 type Command =
     | GetBalance of Key
     | Pay of Key * Key * uint64
+    | GetTransactions of Key
     | Undefined
 
 let parseCommand (cmd: string)  =
@@ -80,6 +82,7 @@ let parseCommand (cmd: string)  =
         let mutable amount: uint64 = 0UL
         if UInt64.TryParse(am, &amount) then Pay (Convert.FromBase64String(from), Convert.FromBase64String(to_), amount)
         else Undefined
+    | tp :: key :: _ when tp = "transactions" -> GetTransactions (Convert.FromBase64String(key))
     | _ -> Undefined
 
 let txcmd (cmd:string) =
@@ -127,7 +130,22 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                         |> System.Text.Encoding.UTF8.GetBytes
                         |> ByteSegment
                     do! webSocket.send Text response true
+                
+                | GetTransactions key ->
+                    let response = 
+                        key
+                        |> createPubKeyBytes
+                        |> server.GetTransactions
+                        |> List.filter (fun t -> t.type_ = Outgoing)
+                        |> List.map Blockchain.describeUserTransaction
+                        |> (fun list -> String.Join(" ", list |> List.toArray))
+                        |> sprintf "transactions %s" 
+                        |> System.Text.Encoding.UTF8.GetBytes
+                        |> ByteSegment
+                    do! webSocket.send Text response true
+
                 | _ -> ()
+
             | (Close, _, _) ->
                 let emptyResponse = [||] |> ByteSegment
                 do! webSocket.send Close emptyResponse true

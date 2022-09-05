@@ -152,6 +152,19 @@ open CSC
         Async.Start <| server.Start payerKey
         match server.Pay payerKey receiverPubkey amount with
         | Ok tx ->             
-            let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing) |> List.length
-            txcount |> should equal 1
+            let tx = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing)
+            tx |> List.length |> should equal 1
+            match tx with
+            | t :: _ -> t.amount |> should equal amount
+            | _ -> failwith "Transaction not found"
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify miner transactions`` () =
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let blocks = createBlockchainWithThreshold 2 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Mined) |> List.length
+        txcount |> should equal 2

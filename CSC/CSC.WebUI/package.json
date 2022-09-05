@@ -5,7 +5,7 @@
   },
   "scripts": {
     "test": "elm-test",
-    "start": "npm run copy-js && elm-live src/Main.elm -u -d ../public --port=1234 --open -- --debug --output=../public/elm.compiled.js",
+    "start": "npm run copy-js && elm-live src/Main.elm -u -d ./public --port=1233 --open -- --debug --output=./public/elm.compiled.js",
     "elm:compile": "elm make src/Main.elm --output=../public/elm.compiled.js --optimize",
     "uglifyjs": "uglifyjs ../public/elm.compiled.js --compress --mangle --output=../public/elm.compiled.js",
     "copy-js": "copyfiles js/**.js ../public",

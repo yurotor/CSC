@@ -97,15 +97,24 @@ module Server =
                 |> List.map 
                     (fun (output, tx) -> 
                         let tp = if tx.inputs |> List.isEmpty then Mined else Incoming
-                        { confirmed = true; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = tp }
+                        { confirmed = true; 
+                          amount = output.value; 
+                          address = Convert.ToBase64String(output.pubKeyHash); 
+                          type_ = tp;
+                          time = tx.time }
                     )
                     
             let unconfirmed = 
                 mempool
-                |> List.map (fun t -> t.outputs)
+                |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t))
                 |> List.concat
-                |> List.filter (fun output -> output.pubKeyHash = hash pubkey)
-                |> List.map (fun output -> { confirmed = false; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Incoming })
+                |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
+                |> List.map (fun (output, tx) -> 
+                    { confirmed = false; 
+                      amount = output.value; 
+                      address = Convert.ToBase64String(output.pubKeyHash); 
+                      type_ = Incoming;
+                      time = tx.time })
 
             confirmed @ unconfirmed
 
@@ -115,23 +124,37 @@ module Server =
                 |> List.mapi 
                     (fun blockIndex block -> 
                         block.transactions 
-                        |> List.map (fun t -> t.inputs) 
+                        |> List.map (fun t -> t.inputs |> List.map (fun i -> i, t)) 
                         |> List.concat 
-                        |> List.map (fun input -> input, blockIndex))
+                        |> List.map (fun (input, t) -> input, blockIndex, t))
                 |> List.concat
-                |> List.filter (fun (input, _) -> input.pubKey = pubkey)
+                |> List.filter (fun (input, _, _) -> input.pubKey = pubkey)
                 |> List.choose 
-                    (fun (input, blockIndex) -> 
+                    (fun (input, blockIndex, tx) -> 
                         input 
                         |> findOutputByInput (blocks |> List.take blockIndex)
-                        |> Option.map (fun output -> { confirmed = true; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Outgoing }))
+                        |> Option.map (fun output -> 
+                            { confirmed = true; 
+                              amount = output.value; 
+                              address = Convert.ToBase64String(output.pubKeyHash); 
+                              type_ = Outgoing;
+                              time = tx.time }))
                     
             let unconfirmed = 
                 mempool
-                |> List.map (fun t -> t.outputs)
+                |> List.filter (fun t -> t.inputs |> List.exists (fun i -> i.pubKey = pubkey))
+                |> List.map 
+                    (fun t -> 
+                        t.outputs 
+                        |> List.filter (fun o -> o.pubKeyHash <> hash pubkey)
+                        |> List.map (fun o -> o, t))
                 |> List.concat
-                |> List.filter (fun output -> output.pubKeyHash = hash pubkey)
-                |> List.map (fun output -> { confirmed = false; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Outgoing })
+                |> List.map (fun (output, tx) -> 
+                    { confirmed = false; 
+                      amount = output.value; 
+                      address = Convert.ToBase64String(output.pubKeyHash); 
+                      type_ = Outgoing;
+                      time = tx.time })
 
             confirmed @ unconfirmed
 

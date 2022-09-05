@@ -45,6 +45,7 @@ open System
         type_: UserTransactionType
         amount: uint64
         address: string
+        time: Time
     }
 
     let outputHash output =
@@ -193,3 +194,6 @@ open System
         tx.outputs
         |> List.map (fun o -> sprintf "%A to %i" o.value (BitConverter.ToUInt32(o.pubKeyHash)))
         |> String.concat " "
+
+    let describeUserTransaction tx =
+        sprintf "%b;%A;%i;%s;%i" tx.confirmed tx.type_ tx.amount tx.address tx.time
