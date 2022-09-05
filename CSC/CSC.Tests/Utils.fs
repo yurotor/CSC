@@ -1,4 +1,5 @@
-﻿module Utils
+﻿[<AutoOpen>]
+module Utils
 open System
 
     let private createBlockchainInner size key threshold initialNonce =
@@ -20,4 +21,6 @@ open System
 
     let createBlockchainWithThreshold size key threshold =
         createBlockchainInner size key threshold 1UL
+
+    let defaultThreshold = 18446744073709551615UL
 

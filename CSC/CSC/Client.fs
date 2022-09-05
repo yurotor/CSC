@@ -5,10 +5,10 @@ open System
 open CSC.IO
 
 module Client =
-    let mutable continueLooping = true
-    let mutable blocks = []
-    let mutable monitor = new System.Object()
-    let mutable mempool: Transaction list = []
+    let mutable private continueLooping = true
+    let mutable private blocks = []
+    let mutable private monitor = new System.Object()
+    let mutable private mempool: Transaction list = []
 
     let start key =
         continueLooping <- true
@@ -20,15 +20,15 @@ module Client =
                             mempool
                             |> List.indexed
                             |> List.partition (fst >> (>) max)
-                        mempool <- toremain |> List.map snd
-                        touse |> List.map snd
+                        touse |> List.map snd, toremain |> List.map snd
 
                     let time = DateTime.Now
+                    let blockTransactions, newMempool = getMempoolTransactions 1000                        
                     let newBlock =
                         Miner.mine 
                             key
                             blocks
-                            (getMempoolTransactions 1000)
+                            blockTransactions
                             time
                             4073709551615UL//18446744073709551615UL
                             1UL
@@ -40,6 +40,7 @@ module Client =
                         | _ :: rest -> rest |> List.iter (fun tx -> printfn "Transaction %s" (describe tx))
                         | _ -> ()
                         
+                        mempool <- newMempool
                         blocks <- block :: blocks
                         saveBlock block count
                     | _ -> ()
@@ -48,6 +49,9 @@ module Client =
 
     let stop =
         lock monitor (fun () -> continueLooping <- true)
+        
+    let initBlocks initialBlocks =
+        lock monitor (fun () -> blocks <- initialBlocks)
 
     let tryPay pubkey amount =
         Wallet.tryPay blocks pubkey amount
@@ -58,11 +62,7 @@ module Client =
             utxos
             |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
         myutxos |> List.sumBy (fun u -> u.output.value)
-        //blocks
-        //|> getUTXOSet 
-        //|> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
-        //|> List.sumBy (fun u -> u.output.value) 
-
+       
     let pay transaction =
         lock monitor 
             (fun () -> 
@@ -107,14 +107,14 @@ module Client =
                 (fun (input, blockIndex) -> 
                     input 
                     |> findOutputByInput (blocks |> List.take blockIndex)
-                    |> Option.map (fun output -> { confirmed = true; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Incoming }))
+                    |> Option.map (fun output -> { confirmed = true; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Outgoing }))
                 
         let unconfirmed = 
             mempool
             |> List.map (fun t -> t.outputs)
             |> List.concat
             |> List.filter (fun output -> output.pubKeyHash = hash pubkey)
-            |> List.map (fun output -> { confirmed = false; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Incoming })
+            |> List.map (fun output -> { confirmed = false; amount = output.value; address = Convert.ToBase64String(output.pubKeyHash); type_ = Outgoing })
 
         confirmed @ unconfirmed
 
