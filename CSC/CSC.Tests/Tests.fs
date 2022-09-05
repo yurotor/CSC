@@ -138,3 +138,22 @@ open CSC
                 | _ -> failwith "Block mining failed"
             | _ -> failwith "Transaction not found"
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify outgoing transactions`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let amount = 10UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        Client.initBlocks blocks
+        Client.initBlocksPersistance (fun _ _ -> ())
+        Async.Start <| Client.start payerKey
+        match Client.tryPay payerPubKey amount with
+        | Ok (utxos, total) -> 
+            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
+            Client.pay tx
+            let txcount = Client.getTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing) |> List.length
+            txcount |> should equal 1
+        | Error e -> failwith e

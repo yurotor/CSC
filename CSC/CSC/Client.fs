@@ -9,6 +9,7 @@ module Client =
     let mutable private blocks = []
     let mutable private monitor = new System.Object()
     let mutable private mempool: Transaction list = []
+    let mutable private blockPersistance: (Block -> int -> unit) = fun block count -> saveBlock block count
 
     let start key =
         continueLooping <- true
@@ -42,7 +43,7 @@ module Client =
                         
                         mempool <- newMempool
                         blocks <- block :: blocks
-                        saveBlock block count
+                        blockPersistance block count
                     | _ -> ()
                 )
         }
@@ -52,6 +53,9 @@ module Client =
         
     let initBlocks initialBlocks =
         lock monitor (fun () -> blocks <- initialBlocks)
+
+    let initBlocksPersistance persistance = 
+        lock monitor (fun () -> blockPersistance <- persistance)
 
     let tryPay pubkey amount =
         Wallet.tryPay blocks pubkey amount
