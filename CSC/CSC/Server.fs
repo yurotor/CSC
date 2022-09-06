@@ -11,6 +11,7 @@ module Server =
     type Server(persistance) =
         let mutable blockPersistance: (Block -> int -> unit) = persistance
         let mutable monitor = new System.Object()
+        let mutable mempoolLocker = new System.Object()
         let mutable continueLooping = true
         let mutable blocks: Block list = []
         let mutable mempool: Transaction list = []
@@ -28,7 +29,10 @@ module Server =
                             touse |> List.map snd, toremain |> List.map snd
 
                         let time = DateTime.Now
-                        let blockTransactions, newMempool = getMempoolTransactions 1000                        
+                        let blockTransactions, newMempool = 
+                            lock mempoolLocker (fun () ->
+                                getMempoolTransactions 1000                        
+                            )
                         let newBlock =
                             Miner.mine 
                                 key
@@ -45,7 +49,7 @@ module Server =
                             | _ :: rest -> rest |> List.iter (fun tx -> printfn "Transaction %s" (describe tx))
                             | _ -> ()
                             
-                            mempool <- newMempool
+                            lock mempoolLocker (fun () -> mempool <- newMempool)
                             blocks <- block :: blocks
                             blockPersistance block count
                         | _ -> ()
@@ -62,7 +66,7 @@ module Server =
             Wallet.tryPay blocks pubkey amount
 
         member private _.PayInner transaction =
-            lock monitor 
+            lock mempoolLocker 
                 (fun () -> 
                     mempool <- transaction :: mempool
                     let sum = transaction.outputs |> List.sumBy (fun o -> o.value) 
@@ -130,6 +134,7 @@ module Server =
         member _.GetOutgoingTransactions pubkey =
             let confirmed =
                 blocks
+                |> List.rev
                 |> List.mapi 
                     (fun blockIndex block -> 
                         block.transactions 

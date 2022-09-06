@@ -4,10 +4,12 @@ import Bool.Extra exposing (fromString)
 import Browser
 import Codec exposing (Codec)
 import DateTime exposing (..)
+import Element exposing (..)
+import Element.Input as Input
 import File exposing (File)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html)
+import Html.Attributes as Html
+import Html.Events as Html
 import Json.Decode as D exposing (decodeString)
 import Task exposing (Task)
 import Time exposing (Month(..))
@@ -188,7 +190,10 @@ update msg model =
                         Cmd.none
 
                     else
-                        sendMessage ("balance " ++ model.wallet.key)
+                        Cmd.batch
+                            [ sendMessage ("balance " ++ model.wallet.key)
+                            , sendMessage ("transactions " ++ model.wallet.key)
+                            ]
             in
             ( model, cmd )
 
@@ -264,7 +269,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ messageReceiver Recv
-        , Time.every 30000 Tick
+        , Time.every 1000 Tick
         ]
 
 
@@ -274,38 +279,80 @@ subscriptions _ =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ input
-            [ type_ "file"
-            , multiple False
-            , on "change" (D.map GotFiles filesDecoder)
-            ]
-            []
-        , h1 [] [ text ("Wallet: " ++ model.wallet.name) ]
-        , h1 [] [ text ("Balance: " ++ String.fromInt model.balance ++ " $") ]
-        , div []
-            [ input [ placeholder "To address", value model.to, onInput ToChanged ] []
-            , input [ placeholder "Amount", value model.amount, onInput AmountChanged ] []
-            , button [ onClick PayClicked ] [ text "Pay" ]
-            ]
-        , div [] [ button [ onClick GetTransactions ] [ text "Get transactions" ] ]
-        , div [] <|
-            List.map
-                (\t ->
-                    div []
-                        [ text <|
-                            if t.confirmed then
-                                "Confirmed"
+    layout [ width fill, height fill ] <|
+        column [ padding 20, spacing 20 ]
+            [ Html.input
+                [ Html.type_ "file"
+                , Html.multiple False
+                , Html.on "change" (D.map GotFiles filesDecoder)
+                ]
+                []
+                |> html
+            , text ("Wallet: " ++ model.wallet.name)
+            , text ("Balance: " ++ String.fromInt model.balance ++ " $")
+            , row [ spacing 10 ]
+                [ Input.text []
+                    { onChange = ToChanged
+                    , text = model.to
+                    , placeholder = Just <| Input.placeholder [] <| text <| "To address"
+                    , label = Input.labelHidden ""
+                    }
+                , Input.text []
+                    { onChange = AmountChanged
+                    , text = model.amount
+                    , placeholder = Just <| Input.placeholder [] <| text <| "Amount"
+                    , label = Input.labelHidden ""
+                    }
+                , Input.button []
+                    { onPress = Just PayClicked
+                    , label = text "Pay"
+                    }
+                ]
 
-                            else
-                                "Unconfirmed"
-                        , text <| ((String.fromInt <| t.amount) ++ " $")
-                        , text <| dateToString t.time
-                        ]
-                )
-            <|
-                model.transactions
-        ]
+            -- , div []
+            --     [ input [ placeholder "To address", value model.to, onInput ToChanged ] []
+            --     , input [ placeholder "Amount", value model.amount, onInput AmountChanged ] []
+            --     , button [ onClick PayClicked ] [ text "Pay" ]
+            --     ]
+            , viewTransactions model
+
+            --, div [] [ button [ onClick GetTransactions ] [ text "Get transactions" ] ]
+            -- , div [] <|
+            --     List.map
+            --         (\t ->
+            --             div []
+            --                 [ text <|
+            --                     if t.confirmed then
+            --                         "Confirmed"
+            --                     else
+            --                         "Unconfirmed"
+            --                 , text <| ((String.fromInt <| t.amount) ++ " $")
+            --                 , text <| dateToString t.time
+            --                 ]
+            --         )
+            --     <|
+            --         model.transactions
+            ]
+
+
+viewTransactions : Model -> Element Msg
+viewTransactions model =
+    column [ spacing 10 ] <|
+        List.map
+            (\t ->
+                row [ spacing 10 ]
+                    [ text <|
+                        if t.confirmed then
+                            "Confirmed"
+
+                        else
+                            "Unconfirmed"
+                    , text <| ((String.fromInt <| t.amount) ++ " $")
+                    , text <| dateToString t.time
+                    ]
+            )
+        <|
+            model.transactions
 
 
 dateToString : DateTime -> String
