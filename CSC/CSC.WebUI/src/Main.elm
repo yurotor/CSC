@@ -106,7 +106,8 @@ parseTransactions =
                             time
                                 |> String.toInt
                                 |> Maybe.map
-                                    (Time.millisToPosix
+                                    ((*) 1000
+                                        >> Time.millisToPosix
                                         >> DateTime.fromPosix
                                         >> Transaction c t a add
                                     )
@@ -347,6 +348,13 @@ dateToString date =
 
                 Dec ->
                     "december"
+
+        pad i =
+            if i < 10 then
+                "0" ++ String.fromInt i
+
+            else
+                String.fromInt i
     in
     (String.fromInt <| getDay date)
         ++ " "
@@ -354,11 +362,11 @@ dateToString date =
         ++ " "
         ++ (String.fromInt <| getYear date)
         ++ " "
-        ++ (String.fromInt <| getHours date)
+        ++ (pad <| getHours date)
         ++ ":"
-        ++ (String.fromInt <| getMinutes date)
+        ++ (pad <| getMinutes date)
         ++ ":"
-        ++ (String.fromInt <| getSeconds date)
+        ++ (pad <| getSeconds date)
 
 
 

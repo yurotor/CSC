@@ -168,3 +168,45 @@ open CSC
         server.InitBlocks blocks
         let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Mined) |> List.length
         txcount |> should equal 2
+
+    [<Fact>]
+    let ``Verify incoming transactions without change in mempool`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let amount = 10UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok _ ->             
+            payerPubKey
+            |> server.GetTransactions  
+            |> List.filter (fun t -> t.type_ = Incoming)
+            |> List.length 
+            |> should equal 0
+        | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify incoming transactions without change in blockchain`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let amount = 10UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let server = defaultServer ()
+        match Wallet.tryPay blocks payerPubKey amount with
+        | Ok (utxos, total) ->
+            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
+            match Miner.mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            | Some block ->
+                server.InitBlocks (block :: blocks)
+                payerPubKey
+                |> server.GetTransactions  
+                |> List.filter (fun t -> t.type_ = Incoming)
+                |> List.length 
+                |> should equal 0
+            | _ -> failwith "Transaction not found"
+        | Error e -> failwith e

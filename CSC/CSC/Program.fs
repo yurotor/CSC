@@ -136,7 +136,8 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                         key
                         |> createPubKeyBytes
                         |> server.GetTransactions
-                        |> List.filter (fun t -> t.type_ = Outgoing)
+                        |> List.sortBy (fun t -> t.time)
+                        //|> List.filter (fun t -> t.type_ = Outgoing)
                         |> List.map Blockchain.describeUserTransaction
                         |> (fun list -> String.Join(" ", list |> List.toArray))
                         |> sprintf "transactions %s" 

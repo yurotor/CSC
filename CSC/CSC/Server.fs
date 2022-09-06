@@ -89,9 +89,17 @@ module Server =
             myutxos |> List.sumBy (fun u -> u.output.value)
 
         member _.GetIncomingTransactions pubkey =
+            let filterChange t =
+                t.inputs |> List.exists (fun i -> i.pubKey = pubkey) |> not
+
             let confirmed =
                 blocks
-                |> List.map (fun block -> block.transactions |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t)) |> List.concat)
+                |> List.map 
+                    (fun block -> 
+                        block.transactions 
+                        |> List.filter filterChange
+                        |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t)) 
+                        |> List.concat)
                 |> List.concat
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
                 |> List.map 
@@ -106,6 +114,7 @@ module Server =
                     
             let unconfirmed = 
                 mempool
+                |> List.filter filterChange
                 |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t))
                 |> List.concat
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
