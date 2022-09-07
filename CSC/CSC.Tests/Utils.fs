@@ -2,6 +2,7 @@
 module Utils
 open System
 open CSC
+open CSC.Model.Miner
 
     let private createBlockchainInner size key threshold initialNonce =
         let rec mine blocks threshold nonce lim =
@@ -25,5 +26,7 @@ open CSC
 
     let defaultThreshold = 18446744073709551615UL
 
-    let defaultServer _ = Server(fun _ _ -> ())
+    let defaultServer _ = Server((fun _ _ -> ()), defaultMiner (), defaultThreshold)
+
+    let defaultServerWithThreshold threshold = Server((fun _ _ -> ()), defaultMiner (), threshold)
 

@@ -10,6 +10,8 @@ open Crypto
 open Utils
 open Blockchain
 open CSC
+open CSC.Model.Miner
+
 
     [<Fact>]
     let ``Create private key returns a 32 byte key`` () =
@@ -81,19 +83,29 @@ open CSC
         let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
         payerKey |> should not' (equal receiverKey)
-        
+        let miner = defaultMiner ()
         let amount = 10UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
         let balanceBefore = Wallet.getBalance payerPubKey blocks
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match Miner.mine minerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine minerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
             | Some block ->
                 let balanceAfter = Wallet.getBalance payerPubKey (List.rev (block :: blocks))
                 balanceAfter |> should equal (balanceBefore - amount)
             | _ -> failwith "Failed to mine new block"
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify miner transactions`` () =
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let blocks = createBlockchainWithThreshold 2 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Mined) |> List.length
+        txcount |> should equal 2
                 
     [<Fact>]
     let ``Verify paid transaction is in mempool`` () =
@@ -122,13 +134,14 @@ open CSC
         let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
+        let miner = defaultMiner ()
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
         let server = defaultServer ()
         let countBefore = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming) |> List.length
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match Miner.mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
             | Some block ->
                 server.InitBlocks (block :: blocks)
                 let transactions = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
@@ -166,12 +179,13 @@ open CSC
         let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
+        let miner = defaultMiner ()
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
         let server = defaultServer ()
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match Miner.mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
             | Some block ->
                 server.InitBlocks (block :: blocks)
                 payerPubKey
@@ -182,16 +196,7 @@ open CSC
             | _ -> failwith "Transaction not found"
         | Error e -> failwith e
 
-    [<Fact>]
-    let ``Verify miner transactions`` () =
-        let payerKey = createPrivateKeyBytes
-        let payerPubKey = createPubKeyBytes payerKey
-        let blocks = createBlockchainWithThreshold 2 payerKey defaultThreshold
-        let server = defaultServer ()
-        server.InitBlocks blocks
-        let txcount = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Mined) |> List.length
-        txcount |> should equal 2
-
+    
     [<Fact>]
     let ``Verify incoming transactions without change in mempool`` () =
         let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
@@ -206,7 +211,7 @@ open CSC
         | Ok _ ->             
             payerPubKey
             |> server.GetTransactions  
-            |> List.filter (fun t -> t.type_ = Incoming)
+            |> List.filter (fun t -> t.type_ = Incoming && not t.confirmed)
             |> List.length 
             |> should equal 0
         | Error e -> failwith e
@@ -216,20 +221,45 @@ open CSC
         let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
         let receiverPubkey = createPubKeyBytes receiverKey
         let payerKey = createPrivateKeyBytes
+        let amount = 10UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        Async.Start <| server.Start payerKey
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok _ ->   
+            Notifications.wait ()
+            Notifications.wait ()
+            let tx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
+            tx |> List.length |> should equal 1
+            match tx with
+            | t :: _ -> t.amount |> should equal amount
+            | _ -> failwith "Transaction not found"     
+        | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify transactions of both sides`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
         let amount = 10UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
         let server = defaultServer ()
-        match Wallet.tryPay blocks payerPubKey amount with
-        | Ok (utxos, total) ->
-            let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match Miner.mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
-            | Some block ->
-                server.InitBlocks (block :: blocks)
-                payerPubKey
-                |> server.GetTransactions  
-                |> List.filter (fun t -> t.type_ = Incoming)
-                |> List.length 
-                |> should equal 0
-            | _ -> failwith "Transaction not found"
+        server.InitBlocks blocks
+        Async.Start <| server.Start payerKey
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok _ ->   
+            Notifications.waitFor 5
+            
+            let rectx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
+            rectx |> List.length |> should equal 1
+
+            let sentx = server.GetTransactions payerPubKey |> List.filter (fun t -> t.type_ = Outgoing && t.confirmed)
+            sentx |> List.length |> should equal 1
+
+            match rectx, sentx with
+            | t1 :: _, t2 :: _ -> t1.amount |> should equal t2.amount
+            | _ -> failwith "Transaction not found"      
+            
         | Error e -> failwith e

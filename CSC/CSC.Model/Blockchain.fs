@@ -123,7 +123,7 @@ open System
         blocks
         |> List.map (fun block -> block.transactions |> List.map (fun t -> t.outputs) |> List.concat)
         |> List.concat
-        |> List.tryFind (fun o -> outputHash o = input.prevTxId)
+        |> List.tryFind (outputHash >> (=) input.prevTxId) 
 
     let validateTransaction blocks transaction =
         transaction.inputs

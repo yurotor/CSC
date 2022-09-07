@@ -5,6 +5,7 @@ open Crypto
 open CSC
 open Wallet
 open Blockchain
+open CSC.Model.Miner
 open Suave
 open Suave.Filters
 open Suave.WebSocket
@@ -102,7 +103,7 @@ let txcmd (cmd:string) =
 //yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
 //AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
-let mutable server: Server = Server(saveBlock)
+let mutable server: Server = Server(saveBlock, Miner((printfn "%s")), 4073709551615UL)
 
 let ws (webSocket : WebSocket) (context: HttpContext) =
     socket {
@@ -160,7 +161,6 @@ let app: WebPart =
 
 [<EntryPoint>]
 let main _ =
-    Miner.setLogger (printfn "%s")
     let wallet = load (fun name -> System.IO.File.ReadAllText(name)) Serializer.deserialize<Wallet.Wallet> "ukeselman"
     let minerKey = wallet.key
 

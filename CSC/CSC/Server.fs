@@ -4,11 +4,12 @@ open Blockchain
 open System
 open Common.Crypto
 open Wallet
+open CSC.Model.Miner
 
 [<AutoOpen>]
 module Server =
     
-    type Server(persistance) =
+    type Server(persistance, miner: Miner, threshold) =
         let mutable blockPersistance: (Block -> int -> unit) = persistance
         let mutable monitor = new System.Object()
         let mutable mempoolLocker = new System.Object()
@@ -25,21 +26,23 @@ module Server =
                             let touse, toremain =
                                 mempool
                                 |> List.indexed
-                                |> List.partition (fst >> (>) max)
+                                |> List.partition (fun (i, _) -> i < max)
                             touse |> List.map snd, toremain |> List.map snd
 
                         let time = DateTime.Now
-                        let blockTransactions, newMempool = 
+                        let blockTransactions = 
                             lock mempoolLocker (fun () ->
-                                getMempoolTransactions 1000                        
+                                let blockTransactions, newMempool = getMempoolTransactions 1000  
+                                mempool <- newMempool
+                                blockTransactions
                             )
                         let newBlock =
-                            Miner.mine 
+                            miner.Mine
                                 key
                                 blocks
                                 blockTransactions
                                 time
-                                4073709551615UL//18446744073709551615UL
+                                threshold //18446744073709551615UL
                                 1UL
                         match newBlock with
                         | Some block -> 
@@ -49,10 +52,14 @@ module Server =
                             | _ :: rest -> rest |> List.iter (fun tx -> printfn "Transaction %s" (describe tx))
                             | _ -> ()
                             
-                            lock mempoolLocker (fun () -> mempool <- newMempool)
                             blocks <- block :: blocks
                             blockPersistance block count
-                        | _ -> ()
+                            Async.Start <| Notifications.notify count
+                        | _ -> 
+                            lock mempoolLocker (fun () ->
+                                mempool <- blockTransactions @ mempool
+                            )
+                            ()
                     )
             }
 
@@ -93,19 +100,25 @@ module Server =
             myutxos |> List.sumBy (fun u -> u.output.value)
 
         member _.GetIncomingTransactions pubkey =
-            let filterChange t =
-                t.inputs |> List.exists (fun i -> i.pubKey = pubkey) |> not
+            let filterChange (o, t) =
+                t.inputs |> List.exists (fun i -> Convert.ToBase64String(hash i.pubKey) = Convert.ToBase64String(o.pubKeyHash)) |> not
 
-            let confirmed =
+            let alloutputs =
                 blocks
                 |> List.map 
                     (fun block -> 
                         block.transactions 
-                        |> List.filter filterChange
                         |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t)) 
                         |> List.concat)
                 |> List.concat
+
+            let myoutputs =
+                alloutputs     
+                |> List.filter filterChange
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
+
+            let confirmed =
+                myoutputs                
                 |> List.map 
                     (fun (output, tx) -> 
                         let tp = if tx.inputs |> List.isEmpty then Mined else Incoming
@@ -117,10 +130,10 @@ module Server =
                     )
                     
             let unconfirmed = 
-                mempool
-                |> List.filter filterChange
+                mempool                
                 |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t))
                 |> List.concat
+                |> List.filter filterChange                
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
                 |> List.map (fun (output, tx) -> 
                     { confirmed = false; 
@@ -132,7 +145,7 @@ module Server =
             confirmed @ unconfirmed
 
         member _.GetOutgoingTransactions pubkey =
-            let confirmed =
+            let indexedInputs = 
                 blocks
                 |> List.rev
                 |> List.mapi 
@@ -142,14 +155,27 @@ module Server =
                         |> List.concat 
                         |> List.map (fun (input, t) -> input, blockIndex, t))
                 |> List.concat
+
+            let myinputs =
+                indexedInputs
                 |> List.filter (fun (input, _, _) -> input.pubKey = pubkey)
+
+            let confirmed =
+                myinputs
                 |> List.choose 
                     (fun (input, blockIndex, tx) -> 
+                        let amountWithoutChange output =
+                            let change =
+                                tx.outputs 
+                                |> List.filter (fun o -> Convert.ToBase64String(o.pubKeyHash) = Convert.ToBase64String(output.pubKeyHash))
+                                |> List.sumBy (fun o -> o.value)
+                            output.value - change                       
+                                
                         input 
                         |> findOutputByInput (blocks |> List.take blockIndex)
                         |> Option.map (fun output -> 
                             { confirmed = true; 
-                              amount = output.value; 
+                              amount = amountWithoutChange output; 
                               address = Convert.ToBase64String(output.pubKeyHash); 
                               type_ = Outgoing;
                               time = tx.time }))
