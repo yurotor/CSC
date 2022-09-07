@@ -15,7 +15,7 @@ module Server =
         let mutable mempoolLocker = new System.Object()
         let mutable continueLooping = true
         let mutable blocks: Block list = []
-        let mutable mempool: Transaction list = []
+        let mutable mempool: Map<Guid, Transaction> = Map.empty
         
         member _.Start key =
             continueLooping <- true
@@ -23,24 +23,22 @@ module Server =
                 while continueLooping do
                     lock monitor (fun () ->
                         let getMempoolTransactions max = 
-                            let touse, toremain =
                                 mempool
+                                |> Map.toList
                                 |> List.indexed
-                                |> List.partition (fun (i, _) -> i < max)
-                            touse |> List.map snd, toremain |> List.map snd
+                                |> List.filter (fun (i, _) -> i < max)
+                                |> List.map snd
 
                         let time = DateTime.Now
                         let blockTransactions = 
                             lock mempoolLocker (fun () ->
-                                let blockTransactions, newMempool = getMempoolTransactions 1000  
-                                mempool <- newMempool
-                                blockTransactions
+                                getMempoolTransactions 1000  
                             )
                         let newBlock =
                             miner.Mine
                                 key
                                 blocks
-                                blockTransactions
+                                (blockTransactions |> List.map snd)
                                 time
                                 threshold //18446744073709551615UL
                                 1UL
@@ -54,11 +52,16 @@ module Server =
                             
                             blocks <- block :: blocks
                             blockPersistance block count
+                            lock mempoolLocker (fun () ->
+                                mempool <- 
+                                    blockTransactions
+                                    |> List.fold 
+                                        (fun m (id, _) -> m |> Map.remove id)
+                                        mempool
+                            )
                             Async.Start <| Notifications.notify count
                         | _ -> 
-                            lock mempoolLocker (fun () ->
-                                mempool <- blockTransactions @ mempool
-                            )
+                            
                             ()
                     )
             }
@@ -75,7 +78,7 @@ module Server =
         member private _.PayInner transaction =
             lock mempoolLocker 
                 (fun () -> 
-                    mempool <- transaction :: mempool
+                    mempool <- mempool |> Map.add (Guid.NewGuid()) transaction
                     let sum = transaction.outputs |> List.sumBy (fun o -> o.value) 
                     printfn "New transaction entered the mempool - %i $" sum
                     transaction
@@ -130,8 +133,9 @@ module Server =
                     )
                     
             let unconfirmed = 
-                mempool                
-                |> List.map (fun t -> t.outputs |> List.map (fun o -> o, t))
+                mempool    
+                |> Map.values
+                |> Seq.map (fun t -> t.outputs |> List.map (fun o -> o, t))
                 |> List.concat
                 |> List.filter filterChange                
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
@@ -182,8 +186,9 @@ module Server =
                     
             let unconfirmed = 
                 mempool
-                |> List.filter (fun t -> t.inputs |> List.exists (fun i -> i.pubKey = pubkey))
-                |> List.map 
+                |> Map.values
+                |> Seq.filter (fun t -> t.inputs |> List.exists (fun i -> i.pubKey = pubkey))
+                |> Seq.map 
                     (fun t -> 
                         t.outputs 
                         |> List.filter (fun o -> o.pubKeyHash <> hash pubkey)

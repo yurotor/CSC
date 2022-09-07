@@ -250,7 +250,7 @@ open CSC.Model.Miner
         Async.Start <| server.Start payerKey
         match server.Pay payerKey receiverPubkey amount with
         | Ok _ ->   
-            Notifications.waitFor 5
+            Notifications.waitFor 15
             
             let rectx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
             rectx |> List.length |> should equal 1
