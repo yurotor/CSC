@@ -12,6 +12,7 @@ open Suave.WebSocket
 open Suave.Operators
 open Suave.Sockets
 open Suave.Sockets.Control
+open System.IO
 
 
 //Wallet.save (fun w -> File.WriteAllText(wallet.name, w)) Serializer.serialize wallet
@@ -73,6 +74,8 @@ type Command =
     | GetBalance of Key
     | Pay of Key * Key * uint64
     | GetTransactions of Key
+    | Pubkey of Key
+    | NewWallet of string
     | Undefined
 
 let parseCommand (cmd: string)  =
@@ -84,6 +87,8 @@ let parseCommand (cmd: string)  =
         if UInt64.TryParse(am, &amount) then Pay (Convert.FromBase64String(from), Convert.FromBase64String(to_), amount)
         else Undefined
     | tp :: key :: _ when tp = "transactions" -> GetTransactions (Convert.FromBase64String(key))
+    | tp :: key :: _ when tp = "pubkey" -> Pubkey (Convert.FromBase64String(key))
+    | tp :: name :: _ when tp = "newwallet" -> NewWallet name
     | _ -> Undefined
 
 let txcmd (cmd:string) =
@@ -103,7 +108,7 @@ let txcmd (cmd:string) =
 //yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
 //AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
-let mutable server: Server = Server(saveBlock, Miner((printfn "%s")), 4073709551615UL)
+let mutable server: Server = Server(saveBlock, Miner(), 4073709551615UL)
 
 let ws (webSocket : WebSocket) (context: HttpContext) =
     socket {
@@ -141,6 +146,29 @@ let ws (webSocket : WebSocket) (context: HttpContext) =
                         |> List.map Blockchain.describeUserTransaction
                         |> (fun list -> String.Join(" ", list |> List.toArray))
                         |> sprintf "transactions %s" 
+                        |> System.Text.Encoding.UTF8.GetBytes
+                        |> ByteSegment
+                    do! webSocket.send Text response true
+
+                | Pubkey key ->
+                    let response = 
+                        key
+                        |> createPubKeyBytes
+                        |> (fun k -> Convert.ToBase64String(k))
+                        |> sprintf "pubkey %s" 
+                        |> System.Text.Encoding.UTF8.GetBytes
+                        |> ByteSegment
+                    do! webSocket.send Text response true
+
+                | NewWallet name ->
+                    let wallet = { Wallet.name = name; Wallet.key = createPrivateKeyBytes }
+                    Async.Start <| 
+                        Wallet.save 
+                            (fun w -> async { File.WriteAllText(wallet.name, w) }) 
+                            Serializer.serialize 
+                            wallet
+                    let response = 
+                        sprintf "wallet %s %s" wallet.name (Convert.ToBase64String(wallet.key))
                         |> System.Text.Encoding.UTF8.GetBytes
                         |> ByteSegment
                     do! webSocket.send Text response true

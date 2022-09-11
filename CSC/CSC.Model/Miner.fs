@@ -3,7 +3,7 @@
 module Miner =
     //let mutable log: string -> unit = fun _ -> ()
 
-    type Miner(log) =
+    type Miner() =
         let mutable monitor = new System.Object()
         let mutable stopper = false
 
@@ -19,7 +19,6 @@ module Miner =
                 lock monitor (fun () ->
                     match Blockchain.tryCreateBlock prevBlock (tx :: transactions) utime threshold nonce with
                     | Some b -> 
-                        log <| sprintf "Found block number %i nonce %A" ((blocks |> List.length) + 1) nonce
                         block <- Some b 
                         stopper <- true
                     | _ -> 
@@ -31,7 +30,7 @@ module Miner =
         member _.Stop () =
             lock monitor (fun () -> stopper <- true)
 
-    let defaultMiner () = Miner(fun _ -> ())
+    let defaultMiner () = Miner()
     
     //let mine key blocks transactions time threshold initNonce =
     //    let utime = unixTime time

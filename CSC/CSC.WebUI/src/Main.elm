@@ -5,8 +5,12 @@ import Browser
 import Codec exposing (Codec)
 import DateTime exposing (..)
 import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import File exposing (File)
+import File.Select as SelectFile
 import Html exposing (Html)
 import Html.Attributes as Html
 import Html.Events as Html
@@ -57,13 +61,22 @@ type alias Wallet =
 
 
 type alias Model =
-    { wallet : Wallet
+    { wallet : Maybe Wallet
     , balance : Int
     , to : String
     , amount : String
     , paymentStatus : PaymentStatus
     , transactions : List Transaction
+    , pubkey : Maybe String
+    , newWalletName : Maybe String
+    , walletSelector : WalletSelector
+    , changeWallet : Bool
     }
+
+
+type WalletSelector
+    = New
+    | Existing
 
 
 type TransactionType
@@ -123,8 +136,18 @@ parseTransactions =
 
 
 init : () -> ( Model, Cmd Msg )
-init flags =
-    ( { wallet = Wallet "" "", balance = 0, to = "AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq", amount = "10", paymentStatus = None, transactions = [] }
+init _ =
+    ( Model
+        Nothing
+        0
+        ""
+        ""
+        None
+        []
+        Nothing
+        Nothing
+        New
+        False
     , Cmd.none
     )
 
@@ -134,14 +157,18 @@ init flags =
 
 
 type Msg
-    = GotFiles (List File)
-    | MarkdownLoaded String
-    | Recv String
+    = Recv String
     | Tick Time.Posix
     | ToChanged String
     | AmountChanged String
     | PayClicked
-    | GetTransactions
+    | WalletSelectorChanged WalletSelector
+    | NewWalletName String
+    | CreateNewWallet
+    | ChangeWallet
+    | SelectWalletFile
+    | GotWalletFile File
+    | MarkdownLoaded String
 
 
 
@@ -154,46 +181,23 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotFiles files ->
-            let
-                cmd =
-                    case files of
-                        file :: _ ->
-                            Task.perform MarkdownLoaded (File.toString file)
-
-                        _ ->
-                            Cmd.none
-            in
-            ( model, cmd )
-
-        MarkdownLoaded data ->
-            let
-                ( wallet, cmd ) =
-                    case data |> Codec.decodeString walletDecoder of
-                        Ok w ->
-                            ( w, sendMessage ("balance " ++ w.key) )
-
-                        Err _ ->
-                            ( Wallet "invalid" "", Cmd.none )
-            in
-            ( { model | wallet = wallet }
-            , cmd
-            )
-
         Recv message ->
             handleResponse model message
 
         Tick _ ->
             let
                 cmd =
-                    if model.wallet.key |> String.isEmpty then
-                        Cmd.none
-
-                    else
-                        Cmd.batch
-                            [ sendMessage ("balance " ++ model.wallet.key)
-                            , sendMessage ("transactions " ++ model.wallet.key)
-                            ]
+                    model.wallet
+                        |> Maybe.map
+                            (.key
+                                >> (\key ->
+                                        Cmd.batch
+                                            [ sendMessage ("balance " ++ key)
+                                            , sendMessage ("transactions " ++ key)
+                                            ]
+                                   )
+                            )
+                        |> Maybe.withDefault Cmd.none
             in
             ( model, cmd )
 
@@ -206,10 +210,10 @@ update msg model =
         PayClicked ->
             let
                 ( m, cmd ) =
-                    case model.amount |> String.toInt of
-                        Just am ->
+                    case ( model.wallet, model.amount |> String.toInt ) of
+                        ( Just wallet, Just _ ) ->
                             ( { model | paymentStatus = Waiting }
-                            , sendMessage ("tx " ++ model.wallet.key ++ " " ++ model.to ++ " " ++ model.amount)
+                            , sendMessage ("tx " ++ wallet.key ++ " " ++ model.to ++ " " ++ model.amount)
                             )
 
                         _ ->
@@ -217,16 +221,50 @@ update msg model =
             in
             ( m, cmd )
 
-        GetTransactions ->
+        NewWalletName name ->
+            ( { model | newWalletName = Just name, changeWallet = False }, Cmd.none )
+
+        CreateNewWallet ->
             let
                 cmd =
-                    if model.wallet.key |> String.isEmpty then
-                        Cmd.none
+                    case model.newWalletName of
+                        Just name ->
+                            if name |> String.isEmpty then
+                                Cmd.none
 
-                    else
-                        sendMessage ("transactions " ++ model.wallet.key)
+                            else
+                                sendMessage ("newwallet " ++ name)
+
+                        _ ->
+                            Cmd.none
             in
-            ( model, cmd )
+            ( { model | changeWallet = False }, cmd )
+
+        WalletSelectorChanged ws ->
+            ( { model | walletSelector = ws }, Cmd.none )
+
+        ChangeWallet ->
+            ( { model | changeWallet = True }, Cmd.none )
+
+        SelectWalletFile ->
+            ( model, SelectFile.file [] GotWalletFile )
+
+        GotWalletFile file ->
+            ( model, Task.perform MarkdownLoaded (File.toString file) )
+
+        MarkdownLoaded data ->
+            let
+                ( wallet, cmd ) =
+                    case data |> Codec.decodeString walletDecoder of
+                        Ok w ->
+                            ( w, Cmd.batch [ sendMessage ("balance " ++ w.key), sendMessage ("pubkey " ++ w.key) ] )
+
+                        Err _ ->
+                            ( Wallet "invalid" "", Cmd.none )
+            in
+            ( { model | wallet = Just wallet, changeWallet = False }
+            , cmd
+            )
 
 
 handleResponse : Model -> String -> ( Model, Cmd Msg )
@@ -245,6 +283,12 @@ handleResponse model message =
 
                 ( "transactions", p ) ->
                     ( { model | transactions = parseTransactions p }, Cmd.none )
+
+                ( "pubkey", p :: _ ) ->
+                    ( { model | pubkey = Just p }, Cmd.none )
+
+                ( "wallet", name :: key :: _ ) ->
+                    ( { model | wallet = Just <| Wallet name key }, sendMessage ("pubkey " ++ key) )
 
                 _ ->
                     let
@@ -281,58 +325,102 @@ view : Model -> Html Msg
 view model =
     layout [ width fill, height fill ] <|
         column [ padding 20, spacing 20 ]
-            [ Html.input
-                [ Html.type_ "file"
-                , Html.multiple False
-                , Html.on "change" (D.map GotFiles filesDecoder)
-                ]
-                []
-                |> html
-            , text ("Wallet: " ++ model.wallet.name)
-            , text ("Balance: " ++ String.fromInt model.balance ++ " $")
-            , row [ spacing 10 ]
-                [ Input.text []
-                    { onChange = ToChanged
-                    , text = model.to
-                    , placeholder = Just <| Input.placeholder [] <| text <| "To address"
-                    , label = Input.labelHidden ""
-                    }
-                , Input.text []
-                    { onChange = AmountChanged
-                    , text = model.amount
-                    , placeholder = Just <| Input.placeholder [] <| text <| "Amount"
-                    , label = Input.labelHidden ""
-                    }
-                , Input.button []
-                    { onPress = Just PayClicked
-                    , label = text "Pay"
-                    }
-                ]
+            (viewWalletSelector model
+                :: (case model.wallet of
+                        Just wallet ->
+                            [ text ("Wallet: " ++ wallet.name)
+                            , text ("Balance: " ++ String.fromInt model.balance ++ " $")
+                            , row [ spacing 10 ]
+                                [ text "Get Paid: "
+                                , model.pubkey |> Maybe.map text |> Maybe.withDefault Element.none
+                                ]
+                            , row [ spacing 10 ]
+                                [ Input.text []
+                                    { onChange = ToChanged
+                                    , text = model.to
+                                    , placeholder = Just <| Input.placeholder [] <| text <| "To address"
+                                    , label = Input.labelHidden ""
+                                    }
+                                , Input.text []
+                                    { onChange = AmountChanged
+                                    , text = model.amount
+                                    , placeholder = Just <| Input.placeholder [] <| text <| "Amount"
+                                    , label = Input.labelHidden ""
+                                    }
+                                , viewButton PayClicked "Pay"
+                                ]
+                            , viewTransactions model
+                            ]
 
-            -- , div []
-            --     [ input [ placeholder "To address", value model.to, onInput ToChanged ] []
-            --     , input [ placeholder "Amount", value model.amount, onInput AmountChanged ] []
-            --     , button [ onClick PayClicked ] [ text "Pay" ]
-            --     ]
-            , viewTransactions model
+                        _ ->
+                            []
+                   )
+            )
 
-            --, div [] [ button [ onClick GetTransactions ] [ text "Get transactions" ] ]
-            -- , div [] <|
-            --     List.map
-            --         (\t ->
-            --             div []
-            --                 [ text <|
-            --                     if t.confirmed then
-            --                         "Confirmed"
-            --                     else
-            --                         "Unconfirmed"
-            --                 , text <| ((String.fromInt <| t.amount) ++ " $")
-            --                 , text <| dateToString t.time
-            --                 ]
-            --         )
-            --     <|
-            --         model.transactions
-            ]
+
+blue =
+    Element.rgb 0 0 0.8
+
+
+darkBlue =
+    Element.rgb 0 0 0.9
+
+
+white =
+    Element.rgb 1 1 1
+
+
+viewButton : Msg -> String -> Element Msg
+viewButton msg txt =
+    Input.button
+        [ Background.color blue
+        , Font.color white
+        , Border.color darkBlue
+        , paddingXY 32 16
+        , Border.rounded 3
+        ]
+        { onPress = Just msg
+        , label = text txt
+        }
+
+
+viewWalletSelector : Model -> Element Msg
+viewWalletSelector model =
+    let
+        viewSelector =
+            column [ spacing 20 ]
+                (Input.radio
+                    []
+                    { onChange = WalletSelectorChanged
+                    , options = [ Input.option New (text "New wallet"), Input.option Existing (text "Wallet from file") ]
+                    , selected = Just model.walletSelector
+                    , label = Input.labelLeft [ paddingEach { left = 0, right = 20, top = 0, bottom = 0 } ] (text "Select wallet")
+                    }
+                    :: (case model.walletSelector of
+                            Existing ->
+                                [ viewButton SelectWalletFile "Select wallet file"
+                                ]
+
+                            New ->
+                                [ row [ spacing 10 ]
+                                    [ Input.text []
+                                        { onChange = NewWalletName
+                                        , text = model.newWalletName |> Maybe.withDefault ""
+                                        , placeholder = Just <| Input.placeholder [] <| text <| "Wallet name"
+                                        , label = Input.labelHidden ""
+                                        }
+                                    , viewButton CreateNewWallet "Create new wallet"
+                                    ]
+                                ]
+                       )
+                )
+    in
+    case ( model.wallet, model.changeWallet ) of
+        ( Just _, False ) ->
+            viewButton ChangeWallet "Change wallet"
+
+        _ ->
+            viewSelector
 
 
 viewTransactions : Model -> Element Msg
