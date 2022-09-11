@@ -33,40 +33,11 @@
     app.ports.messageReceiver.send(event.data);
   });
 
-  /*
-  var wsUri = "ws://localhost:8080/websocket";
-
-  function init() {
-    testWebSocket();
-  }
-
-  function testWebSocket() {
-    websocket = new WebSocket(wsUri);
-    websocket.onopen = function (evt) { onOpen(evt) };
-    websocket.onclose = function (evt) { onClose(evt) };
-    websocket.onmessage = function (evt) { onMessage(evt) };
-    websocket.onerror = function (evt) { onError(evt) };
-  }
-
-  function onOpen(evt) {
-    console.log("CONNECTED");
-  }
-
-  function onClose(evt) {
-    console.log("DISCONNECTED");
-  }
-
-  function onMessage(evt) {
-    console.log(evt.data);
-    app.ports.messageReceiver.send(event.data);
-  }
-
-  function onError(evt) {
-    console.log(evt.data);
-  }
-
-  window.addEventListener("load", init, false);
-*/
+  app.ports.copy.subscribe(() => {
+    console.log('copy');
+    document.querySelector('#copy').select();
+    document.execCommand('copy');
+  });
 
 
 

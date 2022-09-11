@@ -43,6 +43,9 @@ port sendMessage : String -> Cmd msg
 port messageReceiver : (String -> msg) -> Sub msg
 
 
+port copy : () -> Cmd msg
+
+
 
 -- MODEL
 
@@ -146,7 +149,7 @@ init _ =
         []
         Nothing
         Nothing
-        New
+        Existing
         False
     , Cmd.none
     )
@@ -169,6 +172,7 @@ type Msg
     | SelectWalletFile
     | GotWalletFile File
     | MarkdownLoaded String
+    | Copy
 
 
 
@@ -266,6 +270,9 @@ update msg model =
             , cmd
             )
 
+        Copy ->
+            ( model, copy () )
+
 
 handleResponse : Model -> String -> ( Model, Cmd Msg )
 handleResponse model message =
@@ -330,18 +337,30 @@ view model =
                         Just wallet ->
                             [ text ("Wallet: " ++ wallet.name)
                             , text ("Balance: " ++ String.fromInt model.balance ++ " $")
-                            , row [ spacing 10 ]
+                            , row []
                                 [ text "Get Paid: "
-                                , model.pubkey |> Maybe.map text |> Maybe.withDefault Element.none
+                                , el [ paddingEach { right = 20, left = 10, top = 0, bottom = 0 } ] <|
+                                    html <|
+                                        Html.input
+                                            [ Html.id "copy"
+                                            , Html.value (model.pubkey |> Maybe.withDefault "")
+                                            , Html.style "border" "0"
+                                            , Html.style "font-size" "20px"
+                                            , Html.style "font-family" "Open Sans, Helvetica, Verdana, sans-serif"
+                                            , Html.style "width" "520px"
+                                            , Html.readonly True
+                                            ]
+                                            []
+                                , viewButton Copy "Copy "
                                 ]
                             , row [ spacing 10 ]
-                                [ Input.text []
+                                [ Input.text [ width (px 520) ]
                                     { onChange = ToChanged
                                     , text = model.to
                                     , placeholder = Just <| Input.placeholder [] <| text <| "To address"
                                     , label = Input.labelHidden ""
                                     }
-                                , Input.text []
+                                , Input.text [ width (px 120) ]
                                     { onChange = AmountChanged
                                     , text = model.amount
                                     , placeholder = Just <| Input.placeholder [] <| text <| "Amount"
@@ -370,6 +389,22 @@ white =
     Element.rgb 1 1 1
 
 
+grey =
+    Element.rgb 0.9 0.9 0.9
+
+
+red =
+    Element.rgb 0.8 0 0
+
+
+green =
+    Element.rgb 0 0.8 0
+
+
+black =
+    Element.rgb 0 0 0
+
+
 viewButton : Msg -> String -> Element Msg
 viewButton msg txt =
     Input.button
@@ -392,7 +427,7 @@ viewWalletSelector model =
                 (Input.radio
                     []
                     { onChange = WalletSelectorChanged
-                    , options = [ Input.option New (text "New wallet"), Input.option Existing (text "Wallet from file") ]
+                    , options = [ Input.option Existing (text "Wallet from file"), Input.option New (text "New wallet") ]
                     , selected = Just model.walletSelector
                     , label = Input.labelLeft [ paddingEach { left = 0, right = 20, top = 0, bottom = 0 } ] (text "Select wallet")
                     }
@@ -429,14 +464,50 @@ viewTransactions model =
         List.map
             (\t ->
                 row [ spacing 10 ]
-                    [ text <|
-                        if t.confirmed then
-                            "Confirmed"
+                    [ el
+                        [ Font.color
+                            (if t.type_ == Outgoing then
+                                red
 
-                        else
-                            "Unconfirmed"
-                    , text <| ((String.fromInt <| t.amount) ++ " $")
-                    , text <| dateToString t.time
+                             else
+                                green
+                            )
+                        ]
+                      <|
+                        text <|
+                            ((String.fromInt <| t.amount) ++ " $")
+                    , el
+                        [ Font.color
+                            (if t.confirmed then
+                                black
+
+                             else
+                                grey
+                            )
+                        ]
+                      <|
+                        text <|
+                            dateToString t.time
+                    , el
+                        [ Font.color
+                            (if t.confirmed then
+                                black
+
+                             else
+                                grey
+                            )
+                        ]
+                      <|
+                        text <|
+                            case t.type_ of
+                                Mined ->
+                                    "Mined"
+
+                                Incoming ->
+                                    "From " ++ t.address
+
+                                Outgoing ->
+                                    "To " ++ t.address
                     ]
             )
         <|
@@ -449,40 +520,40 @@ dateToString date =
         toEnglishMonth month =
             case month of
                 Jan ->
-                    "january"
+                    "jan"
 
                 Feb ->
-                    "february"
+                    "feb"
 
                 Mar ->
-                    "march"
+                    "mar"
 
                 Apr ->
-                    "april"
+                    "apr"
 
                 May ->
                     "may"
 
                 Jun ->
-                    "june"
+                    "jun"
 
                 Jul ->
-                    "july"
+                    "jul"
 
                 Aug ->
-                    "august"
+                    "aug"
 
                 Sep ->
-                    "september"
+                    "sep"
 
                 Oct ->
-                    "october"
+                    "oct"
 
                 Nov ->
-                    "november"
+                    "nov"
 
                 Dec ->
-                    "december"
+                    "dec"
 
         pad i =
             if i < 10 then
@@ -491,17 +562,17 @@ dateToString date =
             else
                 String.fromInt i
     in
-    (String.fromInt <| getDay date)
-        ++ " "
-        ++ (toEnglishMonth <| getMonth date)
-        ++ " "
-        ++ (String.fromInt <| getYear date)
-        ++ " "
-        ++ (pad <| getHours date)
+    (pad <| getHours date)
         ++ ":"
         ++ (pad <| getMinutes date)
         ++ ":"
         ++ (pad <| getSeconds date)
+        ++ " "
+        ++ (String.fromInt <| getDay date)
+        ++ " "
+        ++ (toEnglishMonth <| getMonth date)
+        ++ " "
+        ++ (String.fromInt <| getYear date)
 
 
 
