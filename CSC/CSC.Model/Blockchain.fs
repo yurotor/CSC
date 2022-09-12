@@ -73,11 +73,15 @@ open System
               bytesOf (block.nonce.ToString()) ] 
             |> hash
 
+    let getBlockContent =
+        List.map toBytes
+        >> Array.concat
+        >> CompressedSensing.calculate CompressedSensing.SIZE
+        >> CompressedSensing.matrixToBytes
+        >> hash
+
     let tryCreateBlock prevBlock transactions time threshold nonce =
-        let content =
-            transactions
-            |> List.map toBytes
-            |> Array.concat
+        let content = transactions |> getBlockContent
 
         let prevBlockHeaderHash = 
             prevBlock |> Option.map blockHeaderHash |> Option.defaultValue (Array.zeroCreate 32)
@@ -163,7 +167,7 @@ open System
         |> Result.ofBool "Block header hash mismatch"
         |> ValidationResult.ofResult
         |> ValidationResult.concat
-            (block.transactions |> List.map toBytes |> Array.concat = block.content 
+            (block.transactions |> getBlockContent = block.content 
             |> Result.ofBool "Block content mismatch"
             |> ValidationResult.ofResult)
         |> ValidationResult.concat  

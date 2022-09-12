@@ -108,7 +108,10 @@ let txcmd (cmd:string) =
 //yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c= 
 //AtvsszMjn1tMD5Xb+cpKglgw3hBg1tVoWFrdomW6/Mbq
 
-let mutable server: Server = Server(saveBlock, Miner(), 4073709551615UL)
+//18446744073709551615UL
+//4073709551615UL
+
+let mutable server: Server = Server(saveBlock, Miner(), 44073709551615UL)
 
 let ws (webSocket : WebSocket) (context: HttpContext) =
     socket {

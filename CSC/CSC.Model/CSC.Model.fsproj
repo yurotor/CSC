@@ -7,12 +7,14 @@
 
   <ItemGroup>
     <Compile Include="Common.fs" />
+    <Compile Include="CompressedSensing.fs" />
     <Compile Include="Blockchain.fs" />
     <Compile Include="Wallet.fs" />
     <Compile Include="Miner.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FSharp.Stats" Version="0.4.8" />
     <PackageReference Include="NBitcoin.Secp256k1" Version="3.0.1" />
   </ItemGroup>
 

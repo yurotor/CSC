@@ -263,3 +263,32 @@ open CSC.Model.Miner
             | _ -> failwith "Transaction not found"      
             
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Compressed sensing result is reproducable`` () =
+        let s = "data"
+        let bytes = hash (System.Text.Encoding.ASCII.GetBytes(s))
+        let cs1 = CompressedSensing.calculate 4 bytes
+        let cs2 = CompressedSensing.calculate 4 bytes
+        FSharp.Stats.Matrix.Generic.compare cs1 cs2 |> should equal 0
+
+    [<Fact>]
+    let ``Compressed sensing result varies for small input changes`` () =
+        let s = "data"
+        let bytes = hash (System.Text.Encoding.ASCII.GetBytes(s))
+        let s2 = "datb"
+        let bytes2 = hash (System.Text.Encoding.ASCII.GetBytes(s2))
+        let cs1 = CompressedSensing.calculate 4 bytes
+        let cs2 = CompressedSensing.calculate 4 bytes2
+        FSharp.Stats.Matrix.Generic.compare cs1 cs2 |> should not' (equal 0)
+
+    [<Fact>]
+    let ``Verify block content`` () =
+        let blocks = createBlockchainWithThreshold 1 createPrivateKeyBytes defaultThreshold
+        match blocks with
+        | block :: _ -> 
+            let bytes = getBlockContent block.transactions
+            bytes |> should equal block.content
+        | _ -> failwith "Block not found"
+        
+        
