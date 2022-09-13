@@ -49,28 +49,35 @@ open System
     }
 
     let outputHash output =
-        Array.concat [bytesOf (output.value.ToString()); output.pubKeyHash] |> hash
+        Array.concat [BitConverter.GetBytes(output.value); output.pubKeyHash] |> hash
 
-    let toBytes transaction =
-        [
-        transaction.inputs
-        |> List.map (fun i -> Array.concat [i.prevTxId; bytesOf <| i.prevTxIndex.ToString(); i.pubKey; i.signature])
-        |> Array.concat;
-        transaction.outputs
-        |> List.map (fun o -> Array.concat [o.pubKeyHash; bytesOf <|  o.value.ToString()])
-        |> Array.concat
-        ]
-        |> Array.concat
+    let toBytes (transaction: Transaction) =
+        let inputs = 
+            if transaction.inputs |> List.length > 0 then
+                transaction.inputs
+                |> List.map (fun i -> 
+                    Array.concat [i.prevTxId; BitConverter.GetBytes(i.prevTxIndex); i.pubKey; i.signature])
+                |> Array.concat
+            else
+                Array.zeroCreate 32
+                
+        let outputs =
+            transaction.outputs
+            |> List.map (fun o -> Array.concat [o.pubKeyHash; BitConverter.GetBytes(o.value)])
+            |> Array.concat
 
-    let toSign prevTxId index =
-        Array.concat [prevTxId; bytesOf (index.ToString())]
+        Array.concat [ BitConverter.GetBytes(transaction.time); inputs; outputs ]
+
+    let toSign prevTxId (index: int) =
+        Array.concat [prevTxId; BitConverter.GetBytes(index)]
 
     let blockHeaderHash block =
         Array.concat 
             [ block.prevBlockHeaderHash;
-              block.content; 
-              bytesOf (block.time.ToString()); 
-              bytesOf (block.nonce.ToString()) ] 
+              block.content;
+              BitConverter.GetBytes(block.time);
+              BitConverter.GetBytes(block.nonce);
+            ] 
             |> hash
 
     let getBlockContent =
@@ -89,7 +96,8 @@ open System
         let block = 
             { prevBlockHeaderHash = prevBlockHeaderHash; content = content; time = time; nonce = nonce; transactions = transactions }
 
-        if block |> blockHeaderHash |> hashToNumber < threshold then
+        let num = block |> blockHeaderHash |> hashToNumber
+        if num < threshold then
             Some block
         else
             None

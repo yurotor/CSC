@@ -290,5 +290,5 @@ open CSC.Model.Miner
             let bytes = getBlockContent block.transactions
             bytes |> should equal block.content
         | _ -> failwith "Block not found"
-        
-        
+
+    

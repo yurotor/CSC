@@ -22,7 +22,6 @@ open NBitcoin.Secp256k1
                 buffer
             )
             
-
     let hash (x: byte array) : byte array =
         use sha256 = SHA256.Create()
         sha256.ComputeHash(x)
@@ -32,13 +31,6 @@ open NBitcoin.Secp256k1
 
     let bytesOf (s: string) = 
         Encoding.ASCII.GetBytes(s)
-
-    //let leadingZeros (hash: Hash) =
-    //    let rec count i x =
-    //        match x with
-    //        | head :: tail when head = 0uy -> count (i + 1) tail
-    //        | _ -> i
-    //    count 0 (hash |> List.ofArray)
 
     let hashToNumber hash =
          BitConverter.ToUInt64 (ReadOnlySpan<byte> hash)

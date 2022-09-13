@@ -9,5 +9,5 @@
     let deserialize<'t> i =
         JsonConvert.DeserializeObject<'t>(i)
 
-    let txid : (Transaction -> Hash) =
-        serialize >> bytesOf >> hash
+    //let txid : (Transaction -> Hash) =
+    //    serialize >> bytesOf >> hash
