@@ -1,8 +1,10 @@
 ﻿namespace CSC.Model
 
+open System
+
 module Miner =
     type Miner() =
-        let mutable monitor = new System.Object()
+        let mutable monitor = Object()
         let mutable stopper = false
 
         member _.Mine key blocks transactions time threshold initNonce = 
@@ -10,8 +12,9 @@ module Miner =
             let tx = Wallet.createCoinbaseTransaction 100UL utime key
             let prevBlock = blocks |> List.tryHead
             let mutable block: Blockchain.Block option = None
-            let mutable nonce = initNonce
             let mutable count = 1
+            let mutable rand = Random()
+            let mutable nonce = uint64(rand.NextInt64())
 
             stopper <- false
             while stopper <> true do
@@ -23,7 +26,7 @@ module Miner =
                         printfn "Mined after %i trials" count
                         count <- 1
                     | _ -> 
-                        nonce <- Blockchain.nextNonce nonce
+                        nonce <- uint64(rand.NextInt64())
                         count <- count + 1
                 )
 
