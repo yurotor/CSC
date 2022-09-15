@@ -62,17 +62,17 @@ open Crypto
             |> List.choose (createTransactionInput payerKey)
         let output =
             createTransactionOutput receiverPubkey amount
-        let change =
-            createTransactionOutput (createPubKeyBytes payerKey) (total - amount)
-        createTransaction inputs [output; change] time
+        let outputs =
+            if total - amount > 0UL then
+                let change =
+                    createTransactionOutput (createPubKeyBytes payerKey) (total - amount)
+                [output; change]
+            else
+                [output]
+        createTransaction inputs outputs time
 
-    let getBalance pubkey blocks =
-        let utxos = getUTXOSet blocks
-        let myutxos = 
-            utxos
-            |> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
-        myutxos |> List.sumBy (fun u -> u.output.value)
-        //blocks
-        //|> getUTXOSet 
-        //|> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
-        //|> List.sumBy (fun u -> u.output.value) 
+    let getBalance pubkey =
+        getUTXOSet
+        >> List.filter (fun utxo -> utxo.output.pubKeyHash = hash pubkey)
+        >> List.sumBy (fun u -> u.output.value)
+        

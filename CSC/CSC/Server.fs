@@ -166,23 +166,33 @@ module Server =
 
             let confirmed =
                 myinputs
+                |> List.groupBy (fun (_, _, tx) -> hash <| toBytes tx)
                 |> List.choose 
-                    (fun (input, blockIndex, tx) -> 
-                        let amountWithoutChange output =
+                    (snd
+                    >> (fun inputs  ->                        
+                        match inputs with
+                        | (input, _, tx) :: _ ->
+                            let sum =
+                                inputs
+                                |> List.choose (fun (i, blockIndex, _) -> i |> findOutputByInput (blocks |> List.take blockIndex) )
+                                |> List.fold (fun s o -> s + o.value) 0UL
                             let change =
-                                tx.outputs 
-                                |> List.filter (fun o -> Convert.ToBase64String(o.pubKeyHash) = Convert.ToBase64String(output.pubKeyHash))
-                                |> List.sumBy (fun o -> o.value)
-                            output.value - change                       
-                                
-                        input 
-                        |> findOutputByInput (blocks |> List.take blockIndex)
-                        |> Option.map (fun output -> 
+                                tx.outputs
+                                |> List.filter 
+                                    (fun o -> 
+                                        inputs 
+                                        |> List.map (fun (i, _, _) -> i)
+                                        |> List.exists (fun i -> Convert.ToBase64String(hash i.pubKey) = Convert.ToBase64String(o.pubKeyHash)))
+                                |> List.fold (fun s o -> s + o.value) 0UL
                             { confirmed = true; 
-                              amount = amountWithoutChange output; 
-                              address = Convert.ToBase64String(output.pubKeyHash); 
+                              amount = sum - change; 
+                              address = Convert.ToBase64String(hash input.pubKey); 
                               type_ = Outgoing;
-                              time = tx.time }))
+                              time = tx.time }  
+                            |> Some
+                        | _ -> None
+                        )
+                    )
                     
             let unconfirmed = 
                 mempool

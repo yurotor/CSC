@@ -81,8 +81,6 @@ let ws (webSocket : WebSocket) _ =
                         do! webSocket.send Text response true
                 
                     | GetTransactions key ->
-                        //for outgoing - return transactions and not inputs
-                        //don't pay change when 0
                         let response = 
                             key
                             |> createPubKeyBytes

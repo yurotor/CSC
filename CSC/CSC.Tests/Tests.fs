@@ -158,8 +158,8 @@ open CSC.Model.Miner
         let receiverPubkey = createPubKeyBytes receiverKey
         let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
-        let amount = 10UL
-        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let amount = 210UL
+        let blocks = createBlockchainWithThreshold 3 payerKey defaultThreshold
         let server = defaultServer ()
         server.InitBlocks blocks
         Async.Start <| server.Start payerKey
@@ -178,9 +178,9 @@ open CSC.Model.Miner
         let receiverPubkey = createPubKeyBytes receiverKey
         let payerKey = createPrivateKeyBytes
         let payerPubKey = createPubKeyBytes payerKey
-        let amount = 10UL
+        let amount = 210UL
         let miner = defaultMiner ()
-        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let blocks = createBlockchainWithThreshold 3 payerKey defaultThreshold
         let server = defaultServer ()
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
@@ -290,5 +290,20 @@ open CSC.Model.Miner
             let bytes = getBlockContent block.transactions
             bytes |> should equal block.content
         | _ -> failwith "Block not found"
+
+    [<Fact>]
+    let ``Verify no change output when change is 0 `` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let payerKey = createPrivateKeyBytes
+        let payerPubKey = createPubKeyBytes payerKey
+        let amount = 100UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok tx ->             
+            tx.outputs |> List.length |> should equal 1
+        | Error e -> failwith e
 
     
