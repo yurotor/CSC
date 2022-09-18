@@ -79,7 +79,15 @@ module Server =
             lock mempoolLocker 
                 (fun () -> 
                     mempool <- mempool |> Map.add (Guid.NewGuid()) transaction
-                    let sum = transaction.outputs |> List.sumBy (fun o -> o.value) 
+                    let sum = 
+                        transaction.outputs 
+                        |> List.filter 
+                            (fun o -> 
+                                transaction.inputs 
+                                |> List.exists (fun i -> Convert.ToBase64String(hash i.pubKey) = Convert.ToBase64String(o.pubKeyHash))
+                                |> not
+                            )
+                        |> List.sumBy (fun o -> o.value) 
                     printfn "New transaction entered the mempool - %i $" sum
                     transaction
                 )
