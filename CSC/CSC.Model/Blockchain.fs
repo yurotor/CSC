@@ -138,66 +138,102 @@ open System
         |> List.tryFind (outputHash >> (=) input.prevTxId) 
 
     let validateTransaction blocks transaction =
-        transaction.inputs
-        |> List.fold 
-            (fun state input ->
-                result {
-                    let! t = 
-                        blocks 
-                        |> List.map (fun b -> b.transactions)
-                        |> List.concat
-                        |> List.tryFind (fun t -> toBytes t = input.prevTxId)
-                        |> Result.ofOption "Can't find transaction"
+        let inputsValidation =
+            transaction.inputs
+            |> List.fold 
+                (fun state input ->
+                    result {
+                        let! output = 
+                            blocks 
+                            |> List.map (fun b -> b.transactions)
+                            |> List.concat
+                            |> List.choose 
+                                (fun t -> 
+                                    t.outputs 
+                                    |> List.tryItem input.prevTxIndex 
+                                    |> Option.tee (outputHash >> (=) input.prevTxId)
+                                )
+                            |> List.tryHead
+                            |> Result.ofOption { error = "Can't find input source"; type_ = InputSourceMissing }
 
-                    let! o = 
-                        t.outputs 
-                        |> List.tryItem input.prevTxIndex
-                        |> Result.ofOption "Can't find prevTxIndex"
+                        let! _ =
+                            output.pubKeyHash = hash input.pubKey 
+                            |> Result.ofBool { error = "Public key hash mismatch"; type_ = PublicKeyMismatch }
 
-                    let! _ =
-                        o.pubKeyHash = hash input.pubKey
-                        |> Result.ofBool "Public key hash mismatch"
+                        let! _ =
+                            verifySig input.signature input.pubKey (toSign input.prevTxId input.prevTxIndex)
+                            |> not
+                            |> Result.ofBool { error = "Singature mismatch"; type_ = SignatureMismatch }
 
-                    let! _ =
-                        verifySig input.signature input.pubKey (toSign input.prevTxId input.prevTxIndex)
-                        |> Result.ofBool "Singature mismatch"
+                        return ()
+                    }
+                    |> ValidationResult.chain state
+                )
+                Valid
 
-                    return t
-                }
-                |> ValidationResult.chain state
-            )
-            Valid
+        if transaction.inputs |> List.length > 0 then
+            transaction.inputs
+                |> List.fold
+                    (fun sum input ->
+                        let v = 
+                            blocks 
+                            |> List.map (fun b -> b.transactions)
+                            |> List.concat
+                            |> List.choose 
+                                (fun t -> 
+                                    t.outputs 
+                                    |> List.tryItem input.prevTxIndex 
+                                    |> Option.tee (outputHash >> (=) input.prevTxId)
+                                )
+                            |> List.tryHead
+                            |> Option.map (fun o -> o.value)
+                            |> Option.defaultValue 0UL
+                        
+                        sum + v
+                    )
+                    0UL
+                |> (fun sum -> 
+                        let outputsSum =
+                            transaction.outputs |> List.sumBy (fun o -> o.value)
+                        if sum = outputsSum then Ok ()
+                        else Error { error = "Transaction inputs and output sums are not equal"; type_ = TransactionAmountInvalid }
+                    )
+                |> ValidationResult.chain inputsValidation
+        else 
+            inputsValidation
 
     let validateBlockHeader threshold prevblock block =
         prevblock
         |> Option.map (blockHeaderHash >> (=) block.prevBlockHeaderHash)
         |> Option.defaultValue true
-        |> Result.ofBool "Block header hash mismatch"
+        |> Result.ofBool { error = "Block header hash mismatch"; type_ = BlockHeaderHashMismatch }
         |> ValidationResult.ofResult
         |> ValidationResult.concat
             (block.transactions |> getBlockContent = block.content 
-            |> Result.ofBool "Block content mismatch"
+            |> Result.ofBool { error = "Block content mismatch"; type_ = BlockContentMismatch }
             |> ValidationResult.ofResult)
         |> ValidationResult.concat  
             (block |> blockHeaderHash |> hashToNumber < threshold
-            |> Result.ofBool "Invalid nonce"
+            |> Result.ofBool { error = "Invalid nonce"; type_ = InvalidNonce }
             |> ValidationResult.ofResult)
 
     let validateBlockchain threshold blocks =
-        let rec validate prev rest =
+        let rec validate prev rest valres =
             match rest with
             | head :: tail -> 
-                validateBlockHeader threshold prev head 
+                valres
+                |> ValidationResult.concat
+                    (validateBlockHeader threshold prev head)
                 |> ValidationResult.concat
                     (head.transactions 
                     |> List.fold 
                         (fun state t -> validateTransaction blocks t |> ValidationResult.concat state) 
                         Valid
                     )
-                |> ValidationResult.bind (validate (Some head) tail)
-            | _ -> Valid
+                |> validate (Some head) tail
+            | _ -> valres
             
-        validate None blocks
+        validate None blocks Valid
 
     let nextNonce nonce = 
         nonce + 1UL

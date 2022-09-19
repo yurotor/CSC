@@ -46,13 +46,7 @@ let parseCommand (cmd: string)  =
 //18446744073709551615UL
 //4073709551615UL
 
-let mutable server: Server = 
-    Server(
-        saveBlock ConfigurationManager.AppSettings.["Storage"], 
-        Miner(), 
-        Convert.ToUInt64(ConfigurationManager.AppSettings.["Threshold"]))//744073709551615UL
-
-let ws (webSocket : WebSocket) _ =
+let ws  (server: Server) (webSocket : WebSocket) (context: HttpContext) =
     socket {
         let mutable loop = true
         while loop do
@@ -126,9 +120,9 @@ let ws (webSocket : WebSocket) _ =
                 do! webSocket.send Close response true
     }
 
-let app: WebPart =
+let app server: WebPart =
     choose [
-        path "/websocket" >=> handShake ws
+        path "/websocket" >=> handShake (ws server)
     ]
 
 let mutable continueLooping = true
@@ -137,18 +131,30 @@ let mutable continueLooping = true
 let main _ =
     try
         let minerWallet = loadWallet ConfigurationManager.AppSettings.["MinerWallet"]
-        let blockchain = loadBlockchain ConfigurationManager.AppSettings.["Storage"]
+        let storage = ConfigurationManager.AppSettings.["Storage"]
+        let threshold = Convert.ToUInt64(ConfigurationManager.AppSettings.["Threshold"])
+        let blockchain = loadBlockchain storage
 
-        server.InitBlocks blockchain
-        Async.Start <| server.Start minerWallet.key
-        Async.Start <| async { startWebServer defaultConfig app }
+        let server = Server(saveBlock storage, Miner(), threshold)//744073709551615UL
+
+        do
+            match blockchain |> validateBlockchain threshold with
+            | Valid -> 
+                printfn "Valid blockchain of length %i" (blockchain |> List.length)
+                server.InitBlocks blockchain
+                Async.Start <| server.Start minerWallet.key
+                Async.Start <| async { startWebServer defaultConfig (app server) }
     
-        while continueLooping do
-            match Console.ReadLine() with
-            | "q" -> 
-                continueLooping <- false
-                server.Stop
-            | _ -> 
+                while continueLooping do
+                    match Console.ReadLine() with
+                    | "q" -> 
+                        continueLooping <- false
+                        server.Stop
+                    | _ -> 
+                        ()
+            | Invalid e ->
+                printfn "Invalid blockchain. Reasons - %s" (e.ToString())
+                printfn "Press any key to exit."
                 ()
             
     with 

@@ -41,7 +41,7 @@ module Server =
                                 (blockTransactions |> List.map snd)
                                 time
                                 threshold //18446744073709551615UL
-                                1UL
+                                
                         match newBlock with
                         | Some block -> 
                             let count = ((blocks |> List.length) + 1)

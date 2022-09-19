@@ -90,7 +90,7 @@ open CSC.Model.Miner
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match miner.Mine minerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine minerKey blocks [tx] DateTime.Now defaultThreshold with
             | Some block ->
                 let balanceAfter = Wallet.getBalance payerPubKey (List.rev (block :: blocks))
                 balanceAfter |> should equal (balanceBefore - amount)
@@ -141,7 +141,7 @@ open CSC.Model.Miner
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold with
             | Some block ->
                 server.InitBlocks (block :: blocks)
                 let transactions = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming)
@@ -185,7 +185,7 @@ open CSC.Model.Miner
         match Wallet.tryPay blocks payerPubKey amount with
         | Ok (utxos, total) ->
             let tx = Wallet.buildTransaction (unixTime DateTime.Now) utxos total payerKey receiverPubkey amount
-            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold 1UL with
+            match miner.Mine payerKey blocks [tx] DateTime.Now defaultThreshold with
             | Some block ->
                 server.InitBlocks (block :: blocks)
                 payerPubKey
@@ -292,11 +292,10 @@ open CSC.Model.Miner
         | _ -> failwith "Block not found"
 
     [<Fact>]
-    let ``Verify no change output when change is 0 `` () =
+    let ``Verify no change output when change is 0`` () =
         let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
         let receiverPubkey = createPubKeyBytes receiverKey
         let payerKey = createPrivateKeyBytes
-        let payerPubKey = createPubKeyBytes payerKey
         let amount = 100UL
         let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
         let server = defaultServer ()
@@ -305,5 +304,93 @@ open CSC.Model.Miner
         | Ok tx ->             
             tx.outputs |> List.length |> should equal 1
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Find incorrect values in blockchain`` () =
+        let payerKey = createPrivateKeyBytes
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let txbuilder = (fun bs ->
+            if bs |> List.length > 0 then 
+                buildTransactions bs payerKey receiverKey 10UL
+            else [])
+        let blocks = buildBlockchain txbuilder 2 payerKey defaultThreshold
+
+        let hackValues =
+            List.map 
+                (fun (b: Block) -> 
+                    { b with 
+                        transactions = 
+                            b.transactions 
+                            |> List.map 
+                                (fun t -> 
+                                    if t.inputs |> List.length = 0 then t 
+                                    else 
+                                        { t with 
+                                            outputs = 
+                                                t.outputs 
+                                                |> List.map (fun o -> { o with value = o.value * 10UL })}
+                                )
+                    }
+                )
+
+        blocks
+        |> hackValues
+        |> validateBlockchain defaultThreshold 
+        |> ValidationResult.compare 
+            (Invalid 
+                [{error="";type_=TransactionAmountInvalid};
+                {error="";type_=BlockContentMismatch}]
+            )
+        |> should equal true
+
+    [<Fact>]
+    let ``Find incorrect signatures in blockchain`` () =
+        let payerKey = createPrivateKeyBytes
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let txbuilder = (fun bs ->
+            if bs |> List.length > 0 then 
+                buildTransactions bs payerKey receiverKey 10UL
+            else [])
+        let blocks = buildBlockchain txbuilder 2 payerKey defaultThreshold
+
+        let replaceByte bytes =
+            let xxxxx =
+                match bytes |> List.ofArray with
+                | head :: tail -> (head + 1uy) :: tail
+                | _ -> []
+                
+            xxxxx |> Array.ofList
+
+        let hackSigs =
+            List.map 
+                (fun (b: Block) -> 
+                    { b with 
+                        transactions = 
+                            b.transactions 
+                            |> List.map 
+                                (fun t -> 
+                                    { t with 
+                                        inputs = 
+                                            t.inputs 
+                                            |> List.map 
+                                                (fun i -> 
+                                                    { i with signature = replaceByte i.signature }
+                                                )
+                                    }
+                                )
+                    }
+                )
+
+        blocks
+        |> hackSigs
+        |> validateBlockchain defaultThreshold 
+        |> ValidationResult.compare
+            (Invalid 
+                [{error="";type_=SignatureMismatch};
+                {error="";type_=BlockContentMismatch}]
+            )
+        |> should equal true
+
+
 
     

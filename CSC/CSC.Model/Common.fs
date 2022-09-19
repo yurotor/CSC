@@ -35,6 +35,13 @@ open NBitcoin.Secp256k1
     let hashToNumber hash =
          BitConverter.ToUInt64 (ReadOnlySpan<byte> hash)
 
+    [<AutoOpen>]
+    module Option =
+        let tee f x =
+            match x with
+            | Some v when f v -> x
+            | _ -> None
+
     type ResultBuilder() =
            member __.Return(x) = Ok x
            member __.Bind(m, f) = Result.bind f m
@@ -62,7 +69,24 @@ open NBitcoin.Secp256k1
 
     type ValidationResult =
         | Valid
-        | Invalid of string list
+        | Invalid of InvalidResult list
+        override this.ToString () =
+            match this with
+            | Valid -> ""
+            | Invalid list -> list |> List.fold (fun s e -> sprintf "\n%s" e.error) ""
+
+    and InvalidResultType =
+        | SignatureMismatch
+        | PublicKeyMismatch
+        | InputSourceMissing
+        | TransactionAmountInvalid
+        | BlockHeaderHashMismatch
+        | BlockContentMismatch
+        | InvalidNonce
+    and InvalidResult = {
+        error: string
+        type_: InvalidResultType
+    }
 
     module ValidationResult =
         let ofResult res =
@@ -88,6 +112,17 @@ open NBitcoin.Secp256k1
             match vr with
             | Valid -> vr
             | Invalid l -> Invalid l
+
+        let compare vr1 vr2 =
+            match vr1, vr2 with
+            | Valid, Valid -> true
+            | Valid, Invalid _ -> false
+            | Invalid _, Valid -> false
+            | Invalid l1, Invalid l2 -> 
+                let norm1 = l1 |> List.map (fun x -> x.type_) |> List.distinct |> List.sort 
+                let norm2 = l2 |> List.map (fun x -> x.type_) |> List.distinct |> List.sort 
+                norm1 = norm2
+                
 
     module Crypto =
 

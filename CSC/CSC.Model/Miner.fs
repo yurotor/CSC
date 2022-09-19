@@ -7,7 +7,7 @@ module Miner =
         let mutable monitor = Object()
         let mutable stopper = false
 
-        member _.Mine key blocks transactions time threshold initNonce = 
+        member _.Mine key blocks transactions time threshold = 
             let utime = unixTime time
             let tx = Wallet.createCoinbaseTransaction 100UL utime key
             let prevBlock = blocks |> List.tryHead
