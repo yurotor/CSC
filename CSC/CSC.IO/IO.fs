@@ -33,6 +33,7 @@ module IO =
                 loadBlock (block :: blocks) (i + 1)
             | _ -> blocks
         loadBlock [] 1
+        |> List.rev
 
     let loadWallet path =
         load (fun name -> System.IO.File.ReadAllText(name)) Serializer.deserialize<Wallet.Wallet> path

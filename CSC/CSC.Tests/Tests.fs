@@ -388,6 +388,31 @@ open CSC.Model.Miner
             )
         |> should equal true
 
+    [<Fact>]
+    let ``Verify previous block header hash`` () =
+        let payerKey = createPrivateKeyBytes
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let txbuilder = (fun bs ->
+            if bs |> List.length > 0 then 
+                buildTransactions bs payerKey receiverKey 10UL
+            else [])
+        let blocks = buildBlockchain txbuilder 2 payerKey defaultThreshold
 
+        let replaceByte bytes =
+            match bytes |> List.ofArray with
+            | head :: tail -> (head + 1uy) :: tail
+            | _ -> []
+            |> Array.ofList
 
+        let hackBlockHeaders =
+            List.map 
+                (fun (b: Block) -> 
+                    { b with prevBlockHeaderHash = replaceByte b.prevBlockHeaderHash }
+                )
+
+        blocks
+        |> hackBlockHeaders
+        |> validateBlockchain defaultThreshold 
+        |> ValidationResult.compare (Invalid  [ {error = ""; type_ = BlockHeaderHashMismatch } ])
+        |> should equal true
     
