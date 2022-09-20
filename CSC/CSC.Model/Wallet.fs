@@ -32,6 +32,7 @@ open Crypto
                   prevTxIndex = utxo.index; 
                   pubKey = createPubKeyBytes key; 
                   signature = signature })
+        |> Option.unwrap "Failed to sign transaction"
 
     let createTransactionOutput pubkey value =
         { value = value; pubKeyHash = pubkey |> hash }
@@ -59,7 +60,7 @@ open Crypto
     let buildTransaction time utxos total payerKey receiverPubkey amount =
         let inputs =
             utxos
-            |> List.choose (createTransactionInput payerKey)
+            |> List.map (createTransactionInput payerKey)
         let output =
             createTransactionOutput receiverPubkey amount
         let outputs =

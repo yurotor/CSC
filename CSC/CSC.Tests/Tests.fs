@@ -64,7 +64,7 @@ open CSC.Model.Miner
         let msg = bytesOf <| randomStr 32
         let prkey = createPrivateKeyBytes 
         let pubkeyBytes = createPubKeyBytes prkey
-        
+
         match sign prkey msg with
         | Some s -> verifySig s pubkeyBytes msg |> should equal true
         | _ -> failwith "Failed to sign message"
@@ -228,8 +228,7 @@ open CSC.Model.Miner
         Async.Start <| server.Start payerKey
         match server.Pay payerKey receiverPubkey amount with
         | Ok _ ->   
-            Notifications.wait ()
-            Notifications.wait ()
+            Notifications.waitFor 10
             let tx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
             tx |> List.length |> should equal 1
             match tx with
@@ -338,8 +337,8 @@ open CSC.Model.Miner
         |> validateBlockchain defaultThreshold 
         |> ValidationResult.compare 
             (Invalid 
-                [{error="";type_=TransactionAmountInvalid};
-                {error="";type_=BlockContentMismatch}]
+                [ {error = ""; type_ = TransactionAmountInvalid };
+                  {error = ""; type_ = BlockContentMismatch } ]
             )
         |> should equal true
 
@@ -354,12 +353,10 @@ open CSC.Model.Miner
         let blocks = buildBlockchain txbuilder 2 payerKey defaultThreshold
 
         let replaceByte bytes =
-            let xxxxx =
-                match bytes |> List.ofArray with
-                | head :: tail -> (head + 1uy) :: tail
-                | _ -> []
-                
-            xxxxx |> Array.ofList
+            match bytes |> List.ofArray with
+            | head :: tail -> (head + 1uy) :: tail
+            | _ -> []
+            |> Array.ofList
 
         let hackSigs =
             List.map 
@@ -373,7 +370,7 @@ open CSC.Model.Miner
                                         inputs = 
                                             t.inputs 
                                             |> List.map 
-                                                (fun i -> 
+                                                (fun i ->                                                    
                                                     { i with signature = replaceByte i.signature }
                                                 )
                                     }
@@ -384,10 +381,10 @@ open CSC.Model.Miner
         blocks
         |> hackSigs
         |> validateBlockchain defaultThreshold 
-        |> ValidationResult.compare
+        |> ValidationResult.compare 
             (Invalid 
-                [{error="";type_=SignatureMismatch};
-                {error="";type_=BlockContentMismatch}]
+                [ {error = ""; type_ = SignatureMismatch };
+                  {error = ""; type_ = BlockContentMismatch } ]
             )
         |> should equal true
 

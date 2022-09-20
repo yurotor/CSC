@@ -56,20 +56,20 @@ open System
             if transaction.inputs |> List.length > 0 then
                 transaction.inputs
                 |> List.map (fun i -> 
-                    Array.concat [i.prevTxId; BitConverter.GetBytes(i.prevTxIndex); i.pubKey; i.signature])
+                    Array.concat [ i.prevTxId; BitConverter.GetBytes(i.prevTxIndex); i.pubKey; i.signature ])
                 |> Array.concat
             else
                 Array.zeroCreate 32
                 
         let outputs =
             transaction.outputs
-            |> List.map (fun o -> Array.concat [o.pubKeyHash; BitConverter.GetBytes(o.value)])
+            |> List.map (fun o -> Array.concat [ o.pubKeyHash; BitConverter.GetBytes(o.value) ])
             |> Array.concat
 
         Array.concat [ BitConverter.GetBytes(transaction.time); inputs; outputs ]
 
     let toSign prevTxId (index: int) =
-        Array.concat [prevTxId; BitConverter.GetBytes(index)]
+        Array.concat [ prevTxId; BitConverter.GetBytes(index) ] |> hash
 
     let blockHeaderHash block =
         Array.concat 
@@ -162,7 +162,6 @@ open System
 
                         let! _ =
                             verifySig input.signature input.pubKey (toSign input.prevTxId input.prevTxIndex)
-                            |> not
                             |> Result.ofBool { error = "Singature mismatch"; type_ = SignatureMismatch }
 
                         return ()

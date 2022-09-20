@@ -112,7 +112,12 @@ module Server =
 
         member _.GetIncomingTransactions pubkey =
             let filterChange (o, t) =
-                t.inputs |> List.exists (fun i -> Convert.ToBase64String(hash i.pubKey) = Convert.ToBase64String(o.pubKeyHash)) |> not
+                t.inputs 
+                |> List.exists 
+                    (fun i -> 
+                        Convert.ToBase64String(hash i.pubKey) = Convert.ToBase64String(o.pubKeyHash)
+                    ) 
+                |> not
 
             let alloutputs =
                 blocks
@@ -145,7 +150,7 @@ module Server =
                 |> Map.values
                 |> Seq.map (fun t -> t.outputs |> List.map (fun o -> o, t))
                 |> List.concat
-                |> List.filter filterChange                
+                |> List.filter filterChange   
                 |> List.filter (fun (output, _) -> output.pubKeyHash = hash pubkey)
                 |> List.map (fun (output, tx) -> 
                     { confirmed = false; 
@@ -222,4 +227,5 @@ module Server =
             confirmed @ unconfirmed
 
         member this.GetTransactions pubkey =
-            this.GetIncomingTransactions pubkey @ this.GetOutgoingTransactions pubkey
+            let tx=this.GetIncomingTransactions pubkey @ this.GetOutgoingTransactions pubkey
+            tx

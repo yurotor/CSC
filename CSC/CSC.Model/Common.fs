@@ -42,6 +42,11 @@ open NBitcoin.Secp256k1
             | Some v when f v -> x
             | _ -> None
 
+        let unwrap e x =
+            match x with
+            | Some v -> v
+            | _ -> failwith e
+
     type ResultBuilder() =
            member __.Return(x) = Ok x
            member __.Bind(m, f) = Result.bind f m
@@ -143,9 +148,6 @@ open NBitcoin.Secp256k1
             pubkey.WriteToSpan (true, buffer, &len)
             buffer.ToArray ()
 
-        let toSign prevTxId index =
-            Array.concat [prevTxId; bytesOf (index.ToString())] |> hash
-        
         let sign key data =
             let prKey = createPrivateKey key
             let mutable signature: SecpECDSASignature = null
@@ -164,7 +166,8 @@ open NBitcoin.Secp256k1
                 SecpECDSASignature.TryCreateFromCompact(ReadOnlySpan<byte> ``sig``, &signature),
                 ECPubKey.TryCreate(ReadOnlySpan<byte> pubkey, null, &compressed, &publicKey)
             with
-            | true, true -> publicKey.SigVerify(signature, ReadOnlySpan<byte> data)
+            | true, true ->
+                publicKey.SigVerify(signature, ReadOnlySpan<byte> data)
             | _ -> false
             
         
