@@ -140,7 +140,9 @@ let main _ =
         do
             match blockchain |> validateBlockchain threshold with
             | Valid -> 
-                printfn "Valid blockchain of length %i" (blockchain |> List.length)
+                match blockchain |> List.length with
+                | 0 -> ()
+                | x -> printfn "Valid blockchain of length %i" x
                 server.InitBlocks blockchain
                 Async.Start <| server.Start minerWallet.key
                 Async.Start <| async { startWebServer defaultConfig (app server) }
