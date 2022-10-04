@@ -416,7 +416,6 @@ open CSC.Model.Miner
         |> ValidationResult.compare (Invalid  [ {error = ""; type_ = BlockHeaderHashMismatch } ])
         |> should equal true
     
-    //Test scenario: get paid then pay to third party and calaculate balance
     [<Fact>]
     let ``Test payment to third party`` () =
         let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
@@ -436,7 +435,7 @@ open CSC.Model.Miner
             let amount2 = amount / 2UL
             match server.Pay receiverKey receiverPubkey2 amount2 with
             | Ok _ ->
-                Notifications.waitFor 10
+                Notifications.waitFor 50
 
                 let rectx = server.GetTransactions receiverPubkey2 |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
                 let sentx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Outgoing && t.confirmed)
@@ -446,3 +445,14 @@ open CSC.Model.Miner
             | Error e -> failwith e
           
         | Error e -> failwith e
+
+    [<Fact>]
+    let ``Verify blockchain validity`` () =
+        let payerKey = createPrivateKeyBytes
+        let mutable blocks: Block list = []
+        let server = Server((fun b _ -> blocks <- b :: blocks), defaultMiner (), defaultThreshold)
+        Async.Start <| server.Start payerKey
+        Notifications.waitFor 20
+        validateBlockchain defaultThreshold (blocks |> List.rev) 
+        |> ValidationResult.compare Valid        
+        |> should equal true

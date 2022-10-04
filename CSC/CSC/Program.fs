@@ -143,7 +143,7 @@ let main _ =
                 match blockchain |> List.length with
                 | 0 -> ()
                 | x -> printfn "Valid blockchain of length %i" x
-                server.InitBlocks blockchain
+                server.InitBlocks (blockchain |> List.rev)
                 Async.Start <| server.Start minerWallet.key
                 Async.Start <| async { startWebServer defaultConfig (app server) }
     
