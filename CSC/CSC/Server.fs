@@ -187,7 +187,7 @@ module Server =
                         | (input, _, tx) :: _ ->
                             let sum =
                                 inputs
-                                |> List.choose (fun (i, blockIndex, _) -> i |> findOutputByInput (blocks |> List.take blockIndex) )
+                                |> List.choose (fun (i, blockIndex, _) -> i |> findOutputByInput (blocks |> List.rev |> List.take blockIndex) )
                                 |> List.fold (fun s o -> s + o.value) 0UL
                             let change =
                                 tx.outputs
@@ -227,5 +227,5 @@ module Server =
             confirmed @ unconfirmed
 
         member this.GetTransactions pubkey =
-            let tx=this.GetIncomingTransactions pubkey @ this.GetOutgoingTransactions pubkey
+            let tx = this.GetIncomingTransactions pubkey @ this.GetOutgoingTransactions pubkey
             tx

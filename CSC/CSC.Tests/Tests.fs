@@ -416,3 +416,33 @@ open CSC.Model.Miner
         |> ValidationResult.compare (Invalid  [ {error = ""; type_ = BlockHeaderHashMismatch } ])
         |> should equal true
     
+    //Test scenario: get paid then pay to third party and calaculate balance
+    [<Fact>]
+    let ``Test payment to third party`` () =
+        let receiverKey = Convert.FromBase64String("yeVS/rBAIVETw/KiLhi3QTZoBp7QlSs9Q3Mp/W8Qm8c=")  
+        let receiverPubkey = createPubKeyBytes receiverKey
+        let receiverKey2 = Convert.FromBase64String("Js0/WDqKp9QAV7Txe/l11UGfrjE92S3SvrQ5khBKGHU=")  
+        let receiverPubkey2 = createPubKeyBytes receiverKey2
+        let payerKey = createPrivateKeyBytes
+        let amount = 50UL
+        let blocks = createBlockchainWithThreshold 1 payerKey defaultThreshold
+        let server = defaultServer ()
+        server.InitBlocks blocks
+        Async.Start <| server.Start payerKey
+        match server.Pay payerKey receiverPubkey amount with
+        | Ok _ ->   
+            Notifications.waitFor 10
+
+            let amount2 = amount / 2UL
+            match server.Pay receiverKey receiverPubkey2 amount2 with
+            | Ok _ ->
+                Notifications.waitFor 10
+
+                let rectx = server.GetTransactions receiverPubkey2 |> List.filter (fun t -> t.type_ = Incoming && t.confirmed)
+                let sentx = server.GetTransactions receiverPubkey |> List.filter (fun t -> t.type_ = Outgoing && t.confirmed)
+                match sentx, rectx with
+                | [ t1 ], [ t2 ] -> t1.amount |> should equal t2.amount
+                | _ -> failwith "Transaction not found"
+            | Error e -> failwith e
+          
+        | Error e -> failwith e
