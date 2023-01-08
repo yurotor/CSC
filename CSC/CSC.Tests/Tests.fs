@@ -11,6 +11,7 @@ open Utils
 open Blockchain
 open CSC
 open CSC.Model.Miner
+open FSharp.Stats
 
 
     [<Fact>]
@@ -52,15 +53,6 @@ open CSC.Model.Miner
 
     [<Fact>]
     let ``Verify signature`` () =
-        let randomStr = 
-            let chars = "ABCDEFGHIJKLMNOPQRSTUVWUXYZ0123456789"
-            let charsLen = chars.Length
-            let random = System.Random()
-        
-            fun len -> 
-                let randomChars = [|for i in 0..len-1 -> chars.[random.Next(charsLen)]|]
-                new System.String(randomChars)
-
         let msg = bytesOf <| randomStr 32
         let prkey = createPrivateKeyBytes 
         let pubkeyBytes = createPubKeyBytes prkey
@@ -264,12 +256,17 @@ open CSC.Model.Miner
         | Error e -> failwith e
 
     [<Fact>]
-    let ``Compressed sensing result is reproducable`` () =
-        let s = "data"
-        let bytes = hash (System.Text.Encoding.ASCII.GetBytes(s))
-        let cs1 = CompressedSensing.calculate 4 bytes
-        let cs2 = CompressedSensing.calculate 4 bytes
-        FSharp.Stats.Matrix.Generic.compare cs1 cs2 |> should equal 0
+    let ``The Compressed Sensing result is reproducable`` () =
+        [1..1000]
+        |> List.map 
+            (fun _ ->
+                let s = randomStr 32
+                let bytes = System.Text.Encoding.ASCII.GetBytes(s)
+                let cs1 = CompressedSensing.calculate 4 bytes
+                let cs2 = CompressedSensing.calculate 4 bytes
+                Matrix.Generic.compare cs1 cs2
+            )
+        |> List.iter (should equal 0)
 
     [<Fact>]
     let ``Compressed sensing result varies for small input changes`` () =
@@ -279,7 +276,7 @@ open CSC.Model.Miner
         let bytes2 = hash (System.Text.Encoding.ASCII.GetBytes(s2))
         let cs1 = CompressedSensing.calculate 4 bytes
         let cs2 = CompressedSensing.calculate 4 bytes2
-        FSharp.Stats.Matrix.Generic.compare cs1 cs2 |> should not' (equal 0)
+        Matrix.Generic.compare cs1 cs2 |> should not' (equal 0)
 
     [<Fact>]
     let ``Verify block content`` () =
@@ -456,3 +453,19 @@ open CSC.Model.Miner
         validateBlockchain defaultThreshold (blocks |> List.rev) 
         |> ValidationResult.compare Valid        
         |> should equal true
+
+    [<Fact>]
+    let ``Small change in input to Compressed Sensing causes large change in output`` () =
+        [1..1000]
+        |> List.map
+            (fun _ ->
+                let s = randomStr 32
+                let bytes = System.Text.Encoding.ASCII.GetBytes(s)
+                let bytes2 = bytes |> Array.mapi (fun i b -> if i = 0 then b + 1uy else b)
+                let cs1 = CompressedSensing.calculate 4 bytes |> CompressedSensing.matrixToBytes
+                let cs2 = CompressedSensing.calculate 4 bytes2 |> CompressedSensing.matrixToBytes
+                Array.zip cs1 cs2
+                |> Array.map (fun (i, j) -> i = j)
+                |> Array.fold (fun count i -> if i then count + 1 else count) 0
+            )
+        |> List.iter (should be (greaterThan 1))        

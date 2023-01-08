@@ -57,3 +57,11 @@ open Common.Crypto
                 | _ -> ()
         blocks
             
+    let randomStr = 
+        let chars = "ABCDEFGHIJKLMNOPQRSTUVWUXYZ0123456789"
+        let charsLen = chars.Length
+        let random = System.Random()
+    
+        fun len -> 
+            let randomChars = [|for i in 0..len-1 -> chars.[random.Next(charsLen)]|]
+            new System.String(randomChars)
