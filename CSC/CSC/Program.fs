@@ -14,55 +14,6 @@ open Suave.Sockets
 open Suave.Sockets.Control
 open System.Configuration
 
-let run txcount =
-    //generate n transactions
-    let time = unixTime DateTime.Now
-    let key = createPrivateKeyBytes
-    let txs = [1..txcount] |> List.map (fun i -> Wallet.createCoinbaseTransaction (uint64(i)) time key)
-    //hash them using CS and compute avg time
-    let avg =
-        [1..100]
-        |> List.map
-            (fun _ ->
-                let start = DateTime.Now
-                txs |> getBlockContent |> ignore
-                let span = DateTime.Now.Subtract(start)
-                span.TotalMilliseconds
-            )
-        |> List.average
-    
-    printfn "Compressed sensing: Average time is %A for %i transactions" avg txcount
-
-    //hash them using Merkle tree and compute avg time
-    let input = txs |> List.map (toBytes >> hash)
-    let rec compute (list: byte array list) =
-        let res =
-            list
-            |> List.chunkBySize 2
-            |> List.map (Array.concat >> hash)
-            |> function
-                | [x] -> x
-                | (_ :: _ :: _) as list -> compute list
-                | _ -> [||]
-        
-        res
-
-    
-    let avg =
-        [1..100]
-        |> List.map
-            (fun _ ->
-                let start = DateTime.Now
-                let _ = compute input
-                let span = DateTime.Now.Subtract(start)
-                span.TotalMilliseconds
-            )
-        |> List.average
-
-    printfn "Merkle tree: Average time is %A for %i transactions" avg txcount
-
-    ()
-
 type Command =
     | GetBalance of Key
     | Pay of Key * Key * uint64
@@ -178,44 +129,44 @@ let mutable continueLooping = true
 
 [<EntryPoint>]
 let main _ =
-    //run 10
-    //run 100
-    //run 1000
-    //Console.ReadLine() |> ignore
-    //0
-    try
-        let minerWallet = loadWallet ConfigurationManager.AppSettings.["MinerWallet"]
-        let storage = ConfigurationManager.AppSettings.["Storage"]
-        let threshold = Convert.ToUInt64(ConfigurationManager.AppSettings.["Threshold"])
-        let blockchain = loadBlockchain storage
-
-        let server = Server(saveBlock storage, Miner(), threshold)//744073709551615UL
-
-        do
-            match blockchain |> validateBlockchain threshold with
-            | Valid -> 
-                match blockchain |> List.length with
-                | 0 -> ()
-                | x -> printfn "Valid blockchain of length %i" x
-                server.InitBlocks (blockchain |> List.rev)
-                Async.Start <| server.Start minerWallet.key
-                Async.Start <| async { startWebServer defaultConfig (app server) }
-    
-                while continueLooping do
-                    match Console.ReadLine() with
-                    | "q" -> 
-                        continueLooping <- false
-                        server.Stop
-                    | _ -> 
-                        ()
-            | Invalid e ->
-                printfn "Invalid blockchain. Reasons - %s" (e.ToString())
-                printfn "Press any key to exit."
-                ()
-            
-    with 
-    | (exc: Exception) -> 
-        printfn "%s" (exc.Message)
-        printfn "Press any key to exit."
-        Console.ReadLine() |> ignore
+    [1..20]
+    |> List.iter (fun i -> Expirement.run (i * 10))
+        
+    Console.ReadLine() |> ignore
     0
+    //try
+    //    let minerWallet = loadWallet ConfigurationManager.AppSettings.["MinerWallet"]
+    //    let storage = ConfigurationManager.AppSettings.["Storage"]
+    //    let threshold = Convert.ToUInt64(ConfigurationManager.AppSettings.["Threshold"])
+    //    let blockchain = loadBlockchain storage
+
+    //    let server = Server(saveBlock storage, Miner(), threshold)//744073709551615UL
+
+    //    do
+    //        match blockchain |> validateBlockchain threshold with
+    //        | Valid -> 
+    //            match blockchain |> List.length with
+    //            | 0 -> ()
+    //            | x -> printfn "Valid blockchain of length %i" x
+    //            server.InitBlocks (blockchain |> List.rev)
+    //            Async.Start <| server.Start minerWallet.key
+    //            Async.Start <| async { startWebServer defaultConfig (app server) }
+    
+    //            while continueLooping do
+    //                match Console.ReadLine() with
+    //                | "q" -> 
+    //                    continueLooping <- false
+    //                    server.Stop
+    //                | _ -> 
+    //                    ()
+    //        | Invalid e ->
+    //            printfn "Invalid blockchain. Reasons - %s" (e.ToString())
+    //            printfn "Press any key to exit."
+    //            ()
+            
+    //with 
+    //| (exc: Exception) -> 
+    //    printfn "%s" (exc.Message)
+    //    printfn "Press any key to exit."
+    //    Console.ReadLine() |> ignore
+    //0
